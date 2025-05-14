@@ -72,7 +72,7 @@ function App() {
             {!user ? <Redirect to="/auth" /> : <SMSLogs />}
           </Route>
           
-          <Route path="/revenue">
+          <Route path="/revenue-reports">
             {!user ? <Redirect to="/auth" /> : <RevenueReports />}
           </Route>
           
