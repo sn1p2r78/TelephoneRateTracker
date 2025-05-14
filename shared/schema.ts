@@ -1,0 +1,172 @@
+import { pgTable, text, serial, integer, boolean, timestamp, json, real } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Users for authentication
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  fullName: text("full_name").notNull(),
+  role: text("role").notNull().default("admin"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  fullName: true,
+  role: true,
+});
+
+// Premium Rate Numbers
+export const numbers = pgTable("numbers", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  countryCode: text("country_code").notNull(),
+  type: text("type").notNull(), // 'VOICE', 'SMS', 'COMBINED'
+  serviceType: text("service_type").notNull(), // 'SUPPORT', 'ENTERTAINMENT', etc.
+  ratePerMinute: real("rate_per_minute"),
+  ratePerSMS: real("rate_per_sms"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNumberSchema = createInsertSchema(numbers).pick({
+  number: true,
+  countryCode: true,
+  type: true,
+  serviceType: true,
+  ratePerMinute: true,
+  ratePerSMS: true,
+  isActive: true,
+});
+
+// Call Logs
+export const callLogs = pgTable("call_logs", {
+  id: serial("id").primaryKey(),
+  numberId: integer("number_id").notNull(),
+  duration: integer("duration").notNull(), // in seconds
+  revenue: real("revenue").notNull(),
+  callerNumber: text("caller_number"),
+  timestamp: timestamp("timestamp").defaultNow(),
+  countryCode: text("country_code").notNull(),
+  serviceType: text("service_type").notNull(),
+});
+
+export const insertCallLogSchema = createInsertSchema(callLogs).pick({
+  numberId: true,
+  duration: true,
+  revenue: true,
+  callerNumber: true,
+  countryCode: true,
+  serviceType: true,
+});
+
+// SMS Logs
+export const smsLogs = pgTable("sms_logs", {
+  id: serial("id").primaryKey(),
+  numberId: integer("number_id").notNull(),
+  messageLength: integer("message_length").notNull(),
+  revenue: real("revenue").notNull(),
+  senderNumber: text("sender_number"),
+  message: text("message"),
+  timestamp: timestamp("timestamp").defaultNow(),
+  countryCode: text("country_code").notNull(),
+  serviceType: text("service_type").notNull(),
+});
+
+export const insertSMSLogSchema = createInsertSchema(smsLogs).pick({
+  numberId: true,
+  messageLength: true,
+  revenue: true,
+  senderNumber: true,
+  message: true,
+  countryCode: true,
+  serviceType: true,
+});
+
+// User Messages (from customers)
+export const userMessages = pgTable("user_messages", {
+  id: serial("id").primaryKey(),
+  numberId: integer("number_id").notNull(),
+  message: text("message").notNull(),
+  senderNumber: text("sender_number"),
+  isRead: boolean("is_read").notNull().default(false),
+  timestamp: timestamp("timestamp").defaultNow(),
+  status: text("status").notNull().default("pending"), // pending, responded, archived
+});
+
+export const insertUserMessageSchema = createInsertSchema(userMessages).pick({
+  numberId: true,
+  message: true,
+  senderNumber: true,
+  isRead: true,
+  status: true,
+});
+
+// API Integrations
+export const apiIntegrations = pgTable("api_integrations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  provider: text("provider").notNull(),
+  apiKey: text("api_key"),
+  endpoint: text("endpoint"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  configuration: json("configuration"),
+});
+
+export const insertApiIntegrationSchema = createInsertSchema(apiIntegrations).pick({
+  name: true,
+  provider: true,
+  apiKey: true,
+  endpoint: true,
+  isActive: true,
+  configuration: true,
+});
+
+// Settings
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  category: text("category").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSettingSchema = createInsertSchema(settings).pick({
+  key: true,
+  value: true,
+  category: true,
+  description: true,
+});
+
+// Types for all schemas
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Number = typeof numbers.$inferSelect;
+export type InsertNumber = z.infer<typeof insertNumberSchema>;
+
+export type CallLog = typeof callLogs.$inferSelect;
+export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
+
+export type SMSLog = typeof smsLogs.$inferSelect;
+export type InsertSMSLog = z.infer<typeof insertSMSLogSchema>;
+
+export type UserMessage = typeof userMessages.$inferSelect;
+export type InsertUserMessage = z.infer<typeof insertUserMessageSchema>;
+
+export type ApiIntegration = typeof apiIntegrations.$inferSelect;
+export type InsertApiIntegration = z.infer<typeof insertApiIntegrationSchema>;
+
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = z.infer<typeof insertSettingSchema>;
+
+// Activity type for recent activity combined view
+export type ActivityType = (CallLog | SMSLog) & {
+  activityType: 'call' | 'sms';
+  numberValue: string;
+};
