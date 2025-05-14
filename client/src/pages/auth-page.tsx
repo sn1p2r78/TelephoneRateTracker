@@ -1,16 +1,12 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 
+// Simplified schemas
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -22,188 +18,225 @@ const registerSchema = insertUserSchema.extend({
 });
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation, isLoading } = useAuth();
+  const { user, loginMutation, registerMutation } = useAuth();
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
+  // Login form state
+  const [loginForm, setLoginForm] = useState({
+    username: "",
+    password: "",
+    error: { username: "", password: "" }
   });
 
-  const registerForm = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-      fullName: "",
-      role: "admin",
-    },
+  // Registration form state
+  const [registerForm, setRegisterForm] = useState({
+    username: "",
+    password: "",
+    fullName: "",
+    role: "admin",
+    error: { username: "", password: "", fullName: "" }
   });
 
-  async function onLoginSubmit(values: z.infer<typeof loginSchema>) {
-    loginMutation.mutate(values);
-  }
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLoginForm(prev => ({ ...prev, [name]: value }));
+  };
 
-  async function onRegisterSubmit(values: z.infer<typeof registerSchema>) {
-    registerMutation.mutate(values);
-  }
+  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setRegisterForm(prev => ({ ...prev, [name]: value }));
+  };
 
-  // If already logged in, redirect to dashboard
-  if (user) {
-    return <Redirect to="/dashboard" />;
-  }
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    const newErrors = { username: "", password: "" };
+    if (!loginForm.username) newErrors.username = "Username is required";
+    if (!loginForm.password) newErrors.password = "Password is required";
+    
+    if (newErrors.username || newErrors.password) {
+      setLoginForm(prev => ({ ...prev, error: newErrors }));
+      return;
+    }
+    
+    loginMutation.mutate({
+      username: loginForm.username,
+      password: loginForm.password
+    });
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    const newErrors = { username: "", password: "", fullName: "" };
+    if (!registerForm.fullName) newErrors.fullName = "Full name is required";
+    if (!registerForm.username) newErrors.username = "Username is required";
+    if (!registerForm.password) newErrors.password = "Password is required";
+    if (registerForm.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    
+    if (newErrors.username || newErrors.password || newErrors.fullName) {
+      setRegisterForm(prev => ({ ...prev, error: newErrors }));
+      return;
+    }
+    
+    registerMutation.mutate({
+      username: registerForm.username,
+      password: registerForm.password,
+      fullName: registerForm.fullName,
+      role: registerForm.role
+    });
+  };
+
+  // Redirect handled in App.tsx now, we don't need to do it here
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left column with form */}
       <div className="flex-1 flex items-center justify-center p-6 bg-white">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Premium Rate Number Admin</CardTitle>
-            <CardDescription className="text-center">
+        <div className="w-full max-w-md shadow-lg rounded-lg p-6 border">
+          <div className="space-y-1 mb-6">
+            <h2 className="text-2xl font-bold text-center">Premium Rate Number Admin</h2>
+            <p className="text-center text-gray-500">
               Sign in to your account or create a new one
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
-              </TabsList>
+            </p>
+          </div>
+          
+          <div className="mb-6">
+            <div className="flex border-b">
+              <button 
+                onClick={() => setActiveTab('login')}
+                className={`flex-1 py-2 text-center font-medium ${activeTab === 'login' ? 'border-b-2 border-primary' : ''}`}
+              >
+                Login
+              </button>
+              <button 
+                onClick={() => setActiveTab('register')}
+                className={`flex-1 py-2 text-center font-medium ${activeTab === 'register' ? 'border-b-2 border-primary' : ''}`}
+              >
+                Register
+              </button>
+            </div>
+          </div>
+          
+          {activeTab === 'login' ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Username</label>
+                <Input
+                  name="username"
+                  value={loginForm.username}
+                  onChange={handleLoginChange}
+                  placeholder="Enter your username"
+                />
+                {loginForm.error.username && (
+                  <p className="text-sm text-red-500">{loginForm.error.username}</p>
+                )}
+              </div>
               
-              <TabsContent value="login">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter your username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Enter your password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                      {loginMutation.isPending ? 
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in...</> : 
-                        "Sign In"}
-                    </Button>
-                    
-                    {/* Demo credentials */}
-                    <div className="text-center text-sm text-muted-foreground mt-2">
-                      <p>Demo credentials</p>
-                      <p className="font-semibold">Username: admin</p>
-                      <p className="font-semibold">Password: password123</p>
-                    </div>
-                  </form>
-                </Form>
-              </TabsContent>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  type="password"
+                  name="password"
+                  value={loginForm.password}
+                  onChange={handleLoginChange}
+                  placeholder="Enter your password"
+                />
+                {loginForm.error.password && (
+                  <p className="text-sm text-red-500">{loginForm.error.password}</p>
+                )}
+              </div>
               
-              <TabsContent value="register">
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter your full name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Choose a username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Create a password" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-                      {registerMutation.isPending ? 
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : 
-                        "Create Account"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+              <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                {loginMutation.isPending ? 
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in...</> : 
+                  "Sign In"}
+              </Button>
+              
+              {/* Demo credentials */}
+              <div className="text-center text-sm text-gray-500 mt-2">
+                <p>Demo credentials</p>
+                <p className="font-semibold">Username: admin</p>
+                <p className="font-semibold">Password: password123</p>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Full Name</label>
+                <Input
+                  name="fullName"
+                  value={registerForm.fullName}
+                  onChange={handleRegisterChange}
+                  placeholder="Enter your full name"
+                />
+                {registerForm.error.fullName && (
+                  <p className="text-sm text-red-500">{registerForm.error.fullName}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Username</label>
+                <Input
+                  name="username"
+                  value={registerForm.username}
+                  onChange={handleRegisterChange}
+                  placeholder="Choose a username"
+                />
+                {registerForm.error.username && (
+                  <p className="text-sm text-red-500">{registerForm.error.username}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  type="password"
+                  name="password"
+                  value={registerForm.password}
+                  onChange={handleRegisterChange}
+                  placeholder="Create a password"
+                />
+                {registerForm.error.password && (
+                  <p className="text-sm text-red-500">{registerForm.error.password}</p>
+                )}
+              </div>
+              
+              <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                {registerMutation.isPending ? 
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : 
+                  "Create Account"}
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
       
-      {/* Right column with hero section */}
+      {/* Right column with hero section - Simplified */}
       <div className="flex-1 bg-primary p-6 text-white hidden md:flex md:flex-col md:justify-center">
         <div className="max-w-md mx-auto">
-          <h1 className="text-4xl font-bold mb-4">Premium Rate Number Management Platform</h1>
-          <p className="text-lg mb-6">
-            A comprehensive solution for managing your premium rate services, tracking calls and SMS, 
+          <h1 className="text-3xl font-bold mb-4">Premium Rate Number Management Platform</h1>
+          <p className="mb-6">
+            A comprehensive solution for managing premium rate services, tracking calls and SMS, 
             analyzing revenue, and monitoring performance.
           </p>
-          <ul className="space-y-3 text-primary-foreground">
+          <ul className="space-y-3">
             <li className="flex items-center">
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="mr-2">✓</span>
               Real-time analytics and monitoring
             </li>
             <li className="flex items-center">
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="mr-2">✓</span>
               Comprehensive call and SMS tracking
             </li>
             <li className="flex items-center">
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="mr-2">✓</span>
               Complete revenue reporting and analysis
             </li>
             <li className="flex items-center">
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="mr-2">✓</span>
               Multiple service provider integrations
             </li>
           </ul>
