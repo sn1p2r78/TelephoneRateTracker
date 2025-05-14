@@ -22,7 +22,7 @@ export default function SidebarNav() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const navItems = [
-    { href: "/", label: "Dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+    { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     { href: "/calls", label: "Call Logs", icon: <Phone className="w-5 h-5" /> },
     { href: "/sms", label: "SMS Logs", icon: <MessageSquare className="w-5 h-5" /> },
     { href: "/revenue", label: "Revenue Reports", icon: <BarChart className="w-5 h-5" /> },

@@ -52,7 +52,7 @@ export default function AuthPage() {
 
   // If already logged in, redirect to dashboard
   if (user) {
-    return <Redirect to="/" />;
+    return <Redirect to="/dashboard" />;
   }
 
   return (

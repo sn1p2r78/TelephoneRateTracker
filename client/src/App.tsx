@@ -20,7 +20,12 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" component={Dashboard} />
+      <Route path="/" component={() => {
+        // Redirect to auth if not on auth page
+        window.location.pathname = "/auth";
+        return null;
+      }} />
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/calls" component={CallLogs} />
       <ProtectedRoute path="/sms" component={SMSLogs} />
       <ProtectedRoute path="/revenue" component={RevenueReports} />

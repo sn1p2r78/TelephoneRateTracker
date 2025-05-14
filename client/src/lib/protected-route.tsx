@@ -28,6 +28,15 @@ export function ProtectedRoute({
       </Route>
     );
   }
+  
+  // If trying to access root with a user, redirect to dashboard
+  if (path === "/" && user) {
+    return (
+      <Route path={path}>
+        <Redirect to="/dashboard" />
+      </Route>
+    );
+  }
 
   return <Route path={path}><Component /></Route>
 }
