@@ -285,4 +285,9 @@ export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 export type ActivityType = (CallLog | SMSLog) & {
   activityType: 'call' | 'sms';
   numberValue: string;
+  timestamp: string; // ISO date string format
+  contactNumber: string; // Contact phone number
+  duration?: number; // Call duration in seconds
+  messageSize?: number; // SMS message size in characters
+  status: string; // Status of the activity (completed, failed, etc.)
 };
