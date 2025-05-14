@@ -1,85 +1,124 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface CountryData {
   country: string;
   revenue: number;
-  percentage?: number;
 }
 
 interface CountryPerformanceProps {
   countries?: CountryData[];
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
-export default function CountryPerformance({ countries, isLoading }: CountryPerformanceProps) {
-  // Calculate percentages based on the highest revenue
-  const prepareData = () => {
-    if (!countries || countries.length === 0) return [];
-    
-    const maxRevenue = Math.max(...countries.map(c => c.revenue));
-    return countries.map(country => ({
-      ...country,
-      percentage: Math.round((country.revenue / maxRevenue) * 100)
-    }));
+export default function CountryPerformance({ 
+  countries = [], 
+  isLoading = false 
+}: CountryPerformanceProps) {
+  
+  // Sort countries by revenue (highest first)
+  const sortedCountries = [...countries].sort((a, b) => b.revenue - a.revenue);
+  
+  // Get max revenue for calculating percentages
+  const maxRevenue = sortedCountries.length > 0 
+    ? sortedCountries[0].revenue 
+    : 0;
+  
+  // Country flag emojis
+  const countryFlags: Record<string, string> = {
+    'UK': '🇬🇧',
+    'US': '🇺🇸',
+    'Germany': '🇩🇪',
+    'France': '🇫🇷',
+    'Canada': '🇨🇦',
+    'Australia': '🇦🇺',
+    'Italy': '🇮🇹',
+    'Spain': '🇪🇸',
+    'Japan': '🇯🇵',
+    'China': '🇨🇳',
   };
-
-  const data = prepareData();
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
     <Card>
-      <div className="px-5 py-4 border-b border-border flex justify-between items-center">
-        <h3 className="font-semibold">Top Performing Countries</h3>
-        <Button variant="ghost" size="icon">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-        </Button>
-      </div>
-      <ul className="divide-y divide-border">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Top Performing Countries</CardTitle>
+          <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+            <Globe className="h-4 w-4 text-blue-500" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
         {isLoading ? (
-          Array(5).fill(0).map((_, index) => (
-            <li key={index} className="px-5 py-3">
-              <div className="flex items-center">
-                <Skeleton className="w-8 h-8 rounded-full mr-3" />
-                <div className="flex-grow">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-5 w-16" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center">
+                <Skeleton className="h-8 w-8 rounded-full mr-3" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : sortedCountries.length > 0 ? (
+          <div className="space-y-4">
+            {sortedCountries.map((country, index) => (
+              <div key={index} className="group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg" role="img" aria-label={country.country}>
+                      {countryFlags[country.country] || '🌐'}
+                    </span>
+                    <span className="font-medium">{country.country}</span>
                   </div>
-                  <Skeleton className="h-1.5 w-full mt-1.5" />
+                  <span className="text-sm font-medium">{formatCurrency(country.revenue)}</span>
                 </div>
-              </div>
-            </li>
-          ))
-        ) : data.length > 0 ? (
-          data.map((country, index) => (
-            <li key={index} className="px-5 py-3 flex items-center">
-              <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center mr-3">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-              </span>
-              <div className="flex-grow">
-                <div className="flex justify-between">
-                  <span className="font-medium">{country.country}</span>
-                  <span className="text-success">${country.revenue.toFixed(2)}</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-1.5 mt-1.5">
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                   <div 
-                    className="bg-primary h-1.5 rounded-full" 
-                    style={{ width: `${country.percentage}%` }}
-                  ></div>
+                    className="bg-blue-500 h-full rounded-full transition-all duration-500 ease-out group-hover:brightness-110"
+                    style={{ width: `${(country.revenue / maxRevenue) * 100}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>{Math.round((country.revenue / maxRevenue) * 100)}% of total</span>
+                  <span className="text-emerald-500 font-medium">↑ 8.2%</span>
                 </div>
               </div>
-            </li>
-          ))
+            ))}
+          </div>
         ) : (
-          <li className="px-5 py-8 text-center text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground">
             No country data available
-          </li>
+          </div>
         )}
-      </ul>
+        
+        {sortedCountries.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Global Performance</span>
+              <span className="text-sm text-emerald-500 font-medium">↑ 12.4%</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Based on revenue across all countries
+            </p>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

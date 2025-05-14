@@ -1,7 +1,26 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { 
+  ArrowDownRight, 
+  ArrowUpRight, 
+  BarChart2, 
+  PhoneCall, 
+  MessageSquare, 
+  Sparkles 
+} from "lucide-react";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 
 interface ServiceData {
   name: string;
@@ -14,94 +33,134 @@ interface ServiceData {
 
 interface ServicePerformanceProps {
   services?: ServiceData[];
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
-export default function ServicePerformance({ services, isLoading }: ServicePerformanceProps) {
-  const getPerformanceBadge = (performance: string) => {
-    switch (performance) {
-      case 'High Performance':
-        return <Badge variant="outline" className="bg-success/10 text-success">{performance}</Badge>;
-      case 'Medium Performance':
-        return <Badge variant="outline" className="bg-accent/10 text-accent">{performance}</Badge>;
-      case 'Low Performance':
-        return <Badge variant="outline" className="bg-destructive/10 text-destructive">{performance}</Badge>;
+export default function ServicePerformance({ 
+  services = [], 
+  isLoading = false 
+}: ServicePerformanceProps) {
+  
+  const getServiceIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'voice':
+        return <PhoneCall className="h-4 w-4 text-blue-500" />;
+      case 'sms':
+        return <MessageSquare className="h-4 w-4 text-indigo-500" />;
+      case 'combined':
+        return <Sparkles className="h-4 w-4 text-violet-500" />;
       default:
-        return <Badge variant="outline">{performance}</Badge>;
+        return <BarChart2 className="h-4 w-4 text-gray-500" />;
     }
+  };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+  
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   return (
     <Card>
-      <div className="px-5 py-4 border-b border-border flex justify-between items-center">
-        <h3 className="font-semibold">Service Performance</h3>
-        <Button variant="ghost" size="icon">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-        </Button>
-      </div>
-      <ul className="divide-y divide-border">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Service Performance</CardTitle>
+          <div className="bg-violet-100 dark:bg-violet-900 p-2 rounded-full">
+            <BarChart2 className="h-4 w-4 text-violet-500" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
         {isLoading ? (
-          Array(5).fill(0).map((_, index) => (
-            <li key={index} className="px-5 py-3">
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ) : services.length > 0 ? (
+          <div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Service</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Change</TableHead>
+                  <TableHead className="text-right">Usage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {services.map((service, index) => (
+                  <TableRow key={index} className="hover:bg-muted/50 transition-colors">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="bg-muted p-1 rounded-md">
+                          {getServiceIcon(service.type)}
+                        </div>
+                        <div>
+                          <div className="font-medium">{service.name}</div>
+                          <div className="text-xs text-muted-foreground capitalize">{service.type}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(service.revenue)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end">
+                        {service.performance === 'up' ? (
+                          <span className="text-emerald-500 flex items-center">
+                            <ArrowUpRight className="h-3 w-3 mr-1" />
+                            {service.change}%
+                          </span>
+                        ) : (
+                          <span className="text-red-500 flex items-center">
+                            <ArrowDownRight className="h-3 w-3 mr-1" />
+                            {Math.abs(service.change)}%
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatNumber(service.usage)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            <div className="mt-4 pt-4 border-t border-border">
               <div className="flex justify-between items-center">
-                <div>
-                  <Skeleton className="h-5 w-32 mb-1" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-                <Skeleton className="h-6 w-28" />
-              </div>
-              <div className="flex items-center mt-2">
-                <Skeleton className="h-4 w-24 mr-4" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-            </li>
-          ))
-        ) : services && services.length > 0 ? (
-          services.map((service, index) => (
-            <li key={index} className="px-5 py-3">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-medium">{service.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {service.type === 'voice' ? 'Premium voice service' : 'SMS service'}
-                  </p>
-                </div>
-                {getPerformanceBadge(service.performance)}
-              </div>
-              <div className="flex items-center mt-2">
-                <div className="text-sm text-foreground mr-4">
-                  <span className="font-medium">${service.revenue.toFixed(2)}</span>
-                  <span className={`text-xs ml-1 ${
-                    service.change > 0 ? 'text-success' : 
-                    service.change < 0 ? 'text-destructive' : 
-                    'text-muted-foreground'
-                  }`}>
-                    {service.change > 0 ? '+' : ''}{service.change}%
-                  </span>
-                </div>
-                <div className="text-sm text-foreground">
-                  <span className="font-medium">
-                    {service.usage.toLocaleString()} {service.type === 'voice' ? 'mins' : 'msgs'}
-                  </span>
-                  <span className={`text-xs ml-1 ${
-                    service.change > 0 ? 'text-success' : 
-                    service.change < 0 ? 'text-destructive' : 
-                    'text-muted-foreground'
-                  }`}>
-                    {service.change > 0 ? '+' : ''}{Math.round(service.change * 0.8)}%
-                  </span>
+                <div className="text-sm font-medium">Total Revenue</div>
+                <div className="text-sm font-bold">
+                  {formatCurrency(services.reduce((acc, service) => acc + service.revenue, 0))}
                 </div>
               </div>
-            </li>
-          ))
+              <div className="mt-2 text-xs text-muted-foreground">
+                {services.some(s => s.performance === 'up') ? (
+                  <span className="text-emerald-500 font-medium">↑ 7.2% increase</span>
+                ) : (
+                  <span className="text-red-500 font-medium">↓ 1.3% decrease</span>
+                )} from previous period
+              </div>
+            </div>
+          </div>
         ) : (
-          <li className="px-5 py-8 text-center text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground">
             No service data available
-          </li>
+          </div>
         )}
-      </ul>
+      </CardContent>
     </Card>
   );
 }

@@ -1,139 +1,149 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, Phone, MessageSquare, Hash } from "lucide-react";
+import { PhoneCall, MessageSquare, HashIcon, DollarSign } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  change: {
-    value: number;
-    type: 'increase' | 'decrease' | 'neutral';
-  };
-  icon: 'revenue' | 'calls' | 'sms' | 'numbers';
+interface StatCardsProps {
+  stats?: any;
   isLoading?: boolean;
 }
 
-interface StatCardsProps {
-  stats: {
-    totalRevenue: number;
-    callMinutes: number;
-    smsCount: number;
-    activeNumbers: number;
-  } | undefined;
-  isLoading: boolean;
-}
+export default function StatCards({ stats, isLoading = false }: StatCardsProps) {
+  const [animatedStats, setAnimatedStats] = useState({
+    totalRevenue: 0,
+    callMinutes: 0,
+    smsCount: 0,
+    activeNumbers: 0
+  });
 
-function StatCard({ title, value, change, icon, isLoading = false }: StatCardProps) {
-  const getIcon = () => {
-    switch (icon) {
-      case 'revenue':
-        return <DollarSign className="text-primary" />;
-      case 'calls':
-        return <Phone className="text-secondary" />;
-      case 'sms':
-        return <MessageSquare className="text-accent" />;
-      case 'numbers':
-        return <Hash className="text-success" />;
+  useEffect(() => {
+    if (isLoading || !stats) return;
+
+    const animationDuration = 1500; // ms
+    const steps = 40;
+    const interval = animationDuration / steps;
+
+    const targetStats = {
+      totalRevenue: stats.totalRevenue || 0,
+      callMinutes: stats.callMinutes || 0,
+      smsCount: stats.smsCount || 0,
+      activeNumbers: stats.activeNumbers || 0
+    };
+
+    let step = 0;
+
+    const timer = setInterval(() => {
+      if (step >= steps) {
+        clearInterval(timer);
+        setAnimatedStats(targetStats);
+        return;
+      }
+
+      const progress = step / steps;
+      // Using easeOutQuad easing function for smoother animation
+      const easedProgress = 1 - (1 - progress) * (1 - progress);
+
+      setAnimatedStats({
+        totalRevenue: Math.round(targetStats.totalRevenue * easedProgress),
+        callMinutes: Math.round(targetStats.callMinutes * easedProgress),
+        smsCount: Math.round(targetStats.smsCount * easedProgress),
+        activeNumbers: Math.round(targetStats.activeNumbers * easedProgress)
+      });
+
+      step++;
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [stats, isLoading]);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
     }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
-  const getChangeColor = () => {
-    switch (change.type) {
-      case 'increase':
-        return 'text-success';
-      case 'decrease':
-        return 'text-destructive';
-      case 'neutral':
-        return 'text-muted-foreground';
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
-  const getChangeIcon = () => {
-    switch (change.type) {
-      case 'increase':
-        return (
-          <svg className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'decrease':
-        return (
-          <svg className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'neutral':
-        return (
-          <svg className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
-          </svg>
-        );
+  const statCards = [
+    {
+      title: "Total Revenue",
+      value: formatCurrency(animatedStats.totalRevenue),
+      description: "From all services",
+      icon: <DollarSign className="h-5 w-5 text-emerald-500" />,
+      trend: "up",
+      change: "+12.5%",
+      iconBackground: "bg-emerald-100 dark:bg-emerald-900"
+    },
+    {
+      title: "Call Minutes",
+      value: formatNumber(animatedStats.callMinutes),
+      description: "Voice minutes used",
+      icon: <PhoneCall className="h-5 w-5 text-blue-500" />,
+      trend: "up",
+      change: "+8.3%",
+      iconBackground: "bg-blue-100 dark:bg-blue-900"
+    },
+    {
+      title: "SMS Count",
+      value: formatNumber(animatedStats.smsCount),
+      description: "Messages sent/received",
+      icon: <MessageSquare className="h-5 w-5 text-indigo-500" />,
+      trend: "up",
+      change: "+15.2%",
+      iconBackground: "bg-indigo-100 dark:bg-indigo-900"
+    },
+    {
+      title: "Active Numbers",
+      value: formatNumber(animatedStats.activeNumbers),
+      description: "Premium rate numbers",
+      icon: <HashIcon className="h-5 w-5 text-violet-500" />,
+      trend: "up",
+      change: "+3.7%",
+      iconBackground: "bg-violet-100 dark:bg-violet-900"
     }
-  };
+  ];
 
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-muted-foreground text-sm">{title}</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+      {statCards.map((card, index) => (
+        <Card key={index} className="overflow-hidden border">
+          <CardContent className="p-6">
             {isLoading ? (
-              <Skeleton className="h-8 w-24 mt-1" />
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+              </div>
             ) : (
-              <h3 className="text-2xl font-semibold mt-1">{value}</h3>
+              <>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-medium text-muted-foreground">{card.title}</span>
+                  <div className={`p-2 rounded-full ${card.iconBackground}`}>
+                    {card.icon}
+                  </div>
+                </div>
+                <div className="text-2xl font-bold mb-1">{card.value}</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{card.description}</span>
+                  <span className={`text-xs font-medium ${card.trend === 'up' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {card.change}
+                  </span>
+                </div>
+              </>
             )}
-            <p className={`text-sm flex items-center mt-1 ${getChangeColor()}`}>
-              {getChangeIcon()}
-              {change.value === 0 
-                ? 'No change' 
-                : `${change.value > 0 ? '+' : ''}${change.value}% from last period`}
-            </p>
-          </div>
-          <div className={`p-3 rounded-full ${
-            icon === 'revenue' ? 'bg-primary/10' : 
-            icon === 'calls' ? 'bg-secondary/10' : 
-            icon === 'sms' ? 'bg-accent/10' : 
-            'bg-success/10'
-          }`}>
-            {getIcon()}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function StatCards({ stats, isLoading }: StatCardsProps) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <StatCard
-        title="Total Revenue"
-        value={isLoading ? "$0.00" : `$${stats?.totalRevenue?.toFixed(2) || "0.00"}`}
-        change={{ value: 8.4, type: 'increase' }}
-        icon="revenue"
-        isLoading={isLoading}
-      />
-      <StatCard
-        title="Call Minutes"
-        value={isLoading ? 0 : stats?.callMinutes || 0}
-        change={{ value: 12.3, type: 'increase' }}
-        icon="calls"
-        isLoading={isLoading}
-      />
-      <StatCard
-        title="SMS Count"
-        value={isLoading ? 0 : stats?.smsCount || 0}
-        change={{ value: -3.6, type: 'decrease' }}
-        icon="sms"
-        isLoading={isLoading}
-      />
-      <StatCard
-        title="Active Numbers"
-        value={isLoading ? 0 : stats?.activeNumbers || 0}
-        change={{ value: 0, type: 'neutral' }}
-        icon="numbers"
-        isLoading={isLoading}
-      />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
