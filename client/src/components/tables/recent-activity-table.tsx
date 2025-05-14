@@ -135,18 +135,28 @@ export default function RecentActivityTable({
                       <div className="flex items-center gap-2">
                         <User className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>
-                          {activity.activityType === 'call' 
-                            ? formatPhoneNumber(activity.caller || '') 
-                            : formatPhoneNumber(activity.recipient || '')
+                          {activity.contactNumber 
+                            ? formatPhoneNumber(activity.contactNumber) 
+                            : activity.activityType === 'call'
+                              ? formatPhoneNumber(activity.recipient || '')
+                              : 'Unknown'
                           }
                         </span>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {activity.activityType === 'call' ? 
-                        `${activity.duration || 0} sec` : 
-                        `${activity.messageContent?.length || 0} chars`
-                      }
+                      {activity.activityType === 'call' ? (
+                        // Try to access duration from different possible properties
+                        `${activity.duration || 
+                          (activity as any).callDuration || 
+                          0} sec`
+                      ) : (
+                        // Try to access message size/content from different possible properties  
+                        `${activity.messageSize || 
+                          activity.messageContent?.length || 
+                          (activity as any).message?.length || 
+                          0} chars`
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {getStatusBadge(activity.status)}
