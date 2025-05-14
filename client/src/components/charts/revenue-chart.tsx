@@ -66,10 +66,16 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
       chartInstance.current.destroy();
     }
 
-    // Create gradient for area fill
+    // Create gradient for area fill - using standard colors instead of CSS variables
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'hsla(var(--primary), 0.2)');
-    gradient.addColorStop(1, 'hsla(var(--primary), 0)');
+    gradient.addColorStop(0, 'rgba(56, 189, 248, 0.2)');  // Light blue
+    gradient.addColorStop(1, 'rgba(56, 189, 248, 0)');    // Transparent
+
+    // Define theme-appropriate colors
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const primaryColor = isDarkMode ? '#0ea5e9' : '#0284c7';      // sky-500/600
+    const mutedColor = isDarkMode ? '#64748b' : '#94a3b8';        // slate-500/400
+    const backgroundColor = isDarkMode ? '#1e293b' : '#ffffff';   // slate-800/white
 
     chartInstance.current = new Chart(ctx, {
       type: 'line',
@@ -79,12 +85,12 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
           {
             label: 'Revenue',
             data: data.values,
-            borderColor: 'hsl(var(--primary))',
+            borderColor: primaryColor,
             backgroundColor: gradient,
             tension: 0.3,
             fill: true,
-            pointBackgroundColor: 'hsl(var(--primary))',
-            pointBorderColor: 'hsl(var(--background))',
+            pointBackgroundColor: primaryColor,
+            pointBorderColor: backgroundColor,
             pointBorderWidth: 2,
             pointRadius: 4,
             pointHoverRadius: 6,
@@ -92,7 +98,7 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
           {
             label: 'Previous Period',
             data: data.previousValues,
-            borderColor: 'hsla(var(--muted-foreground), 0.5)',
+            borderColor: mutedColor,
             borderDash: [5, 5],
             tension: 0.3,
             borderWidth: 1.5,
@@ -127,8 +133,7 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
           y: {
             beginAtZero: true,
             grid: {
-              color: 'rgba(var(--muted), 0.1)',
-              // Modern Chart.js doesn't use drawBorder anymore
+              color: isDarkMode ? 'rgba(100, 116, 139, 0.1)' : 'rgba(148, 163, 184, 0.1)', // slate colors
               display: true,
             },
             ticks: {
@@ -136,7 +141,7 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
               font: {
                 size: 11,
               },
-              color: 'hsl(var(--muted-foreground))',
+              color: mutedColor,
             },
             border: {
               dash: [5, 5],
@@ -150,7 +155,7 @@ export default function RevenueChart({ isLoading = false }: RevenueChartProps) {
               font: {
                 size: 11,
               },
-              color: 'hsl(var(--muted-foreground))',
+              color: mutedColor,
             },
             border: {
               dash: [5, 5],

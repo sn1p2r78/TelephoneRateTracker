@@ -12,20 +12,23 @@ export default function ServiceTypeChart({ isLoading = false }: ServiceTypeChart
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
+  // Use standard colors instead of CSS variables for chart compatibility
+  const isDarkMode = document.documentElement.classList.contains('dark');
+  
   const data = {
     labels: ['Voice', 'SMS', 'Combined'],
     datasets: [
       {
         data: [45, 35, 20],
         backgroundColor: [
-          'hsla(var(--primary), 0.8)',
-          'hsla(var(--destructive), 0.7)',
-          'hsla(var(--secondary), 0.7)',
+          isDarkMode ? 'rgba(14, 165, 233, 0.8)' : 'rgba(2, 132, 199, 0.8)',     // Primary (sky)
+          isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(220, 38, 38, 0.7)',      // Destructive (red)
+          isDarkMode ? 'rgba(161, 161, 170, 0.7)' : 'rgba(113, 113, 122, 0.7)',  // Secondary (zinc)
         ],
         borderColor: [
-          'hsl(var(--primary))',
-          'hsl(var(--destructive))',
-          'hsl(var(--secondary))',
+          isDarkMode ? '#0ea5e9' : '#0284c7',  // Primary (sky)
+          isDarkMode ? '#ef4444' : '#dc2626',  // Destructive (red)
+          isDarkMode ? '#a1a1aa' : '#71717a',  // Secondary (zinc)
         ],
         borderWidth: 1,
         hoverOffset: 5,
