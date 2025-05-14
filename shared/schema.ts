@@ -209,11 +209,13 @@ export const providers = pgTable("providers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   serviceType: text("service_type").notNull(), // Premium Numbers, SMS & Voice APIs
+  description: text("description"),
   pricingDetails: text("pricing_details").notNull(),
   supportedCountries: text("supported_countries"),
   website: text("website"),
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
+  location: text("location"),
   notes: text("notes"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -222,11 +224,13 @@ export const providers = pgTable("providers", {
 export const insertProviderSchema = createInsertSchema(providers).pick({
   name: true,
   serviceType: true,
+  description: true,
   pricingDetails: true,
   supportedCountries: true,
   website: true,
   contactEmail: true,
   contactPhone: true,
+  location: true,
   notes: true,
   isActive: true,
 });
