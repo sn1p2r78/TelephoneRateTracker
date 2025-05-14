@@ -1,695 +1,683 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import SidebarNav from '@/components/sidebar-nav';
-import HeaderNav from '@/components/header-nav';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  RefreshCw, 
-  Plus, 
-  AlertCircle, 
-  Check, 
-  Cable, 
-  Clock,
-  Trash2,
-  Edit,
-  Link2,
-  Key,
-  Globe
-} from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { ApiIntegration, insertApiIntegrationSchema } from '@shared/schema';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { ApiIntegration } from "@shared/schema";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Textarea } from '@/components/ui/textarea';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Plus, Trash2, Edit, Power, PowerOff } from 'lucide-react';
 
-// Extend the insertApiIntegrationSchema for form validation
-const apiFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  provider: z.string().min(2, "Provider is required"),
-  apiKey: z.string().optional(),
-  endpoint: z.string().url("Must be a valid URL"),
-  isActive: z.boolean().default(true),
-  configuration: z.any().optional(), // For JSON configuration
-});
+// Interface for integration status monitoring
+interface IntegrationStatus {
+  id: number;
+  type: 'smpp' | 'http';
+  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  host?: string;
+  port?: number;
+  error?: string;
+}
 
-type ApiFormValues = z.infer<typeof apiFormSchema>;
+// Form data structure for integrations
+interface IntegrationFormData {
+  name: string;
+  provider: string;
+  integrationType: string;
+  apiKey: string;
+  baseUrl?: string;
+  endpoint?: string;
+  config?: string;
+  isActive: boolean;
+}
 
 export default function ApiIntegrations() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingIntegration, setEditingIntegration] = useState<ApiIntegration | null>(null);
-  const [integrationToDelete, setIntegrationToDelete] = useState<ApiIntegration | null>(null);
-  const [testingIntegration, setTestingIntegration] = useState<ApiIntegration | null>(null);
-  const [isTestingDialogOpen, setIsTestingDialogOpen] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-
   const { toast } = useToast();
-
-  const { data: integrations, isLoading, refetch } = useQuery<ApiIntegration[]>({
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('sms');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<ApiIntegration | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState<IntegrationFormData>({
+    name: '',
+    provider: '',
+    integrationType: 'http',
+    apiKey: '',
+    baseUrl: '',
+    endpoint: '',
+    config: '{}',
+    isActive: true
+  });
+  
+  // Fetch integrations
+  const { data: integrations = [], isLoading: isLoadingIntegrations } = useQuery<ApiIntegration[]>({
     queryKey: ['/api/integrations'],
-    refetchOnWindowFocus: false,
   });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: ApiFormValues) => {
-      const res = await apiRequest("POST", "/api/integrations", {
-        ...data,
-        configuration: typeof data.configuration === 'string' 
-          ? JSON.parse(data.configuration) 
-          : data.configuration
-      });
+  
+  // Fetch integration status
+  const { data: statusData = { smpp: [], http: [] }, isLoading: isLoadingStatus } = useQuery<{
+    smpp: IntegrationStatus[],
+    http: IntegrationStatus[]
+  }>({
+    queryKey: ['/api/integrations/status'],
+    refetchInterval: 5000, // Poll every 5 seconds for status updates
+  });
+  
+  // Create integration mutation
+  const createIntegrationMutation = useMutation({
+    mutationFn: async (data: IntegrationFormData) => {
+      const res = await apiRequest('POST', '/api/integrations', data);
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "API integration created successfully",
+        title: "Integration created",
+        description: "New integration has been created successfully.",
       });
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['/api/integrations'] });
-      setIsFormOpen(false);
-      form.reset();
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Failed to create integration",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: ApiFormValues }) => {
-      const res = await apiRequest("PUT", `/api/integrations/${id}`, {
-        ...data,
-        configuration: typeof data.configuration === 'string' 
-          ? JSON.parse(data.configuration) 
-          : data.configuration
-      });
+  
+  // Update integration mutation
+  const updateIntegrationMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: IntegrationFormData }) => {
+      const res = await apiRequest('PUT', `/api/integrations/${id}`, data);
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "API integration updated successfully",
+        title: "Integration updated",
+        description: "Integration has been updated successfully.",
       });
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['/api/integrations'] });
-      setIsFormOpen(false);
-      setEditingIntegration(null);
-      form.reset();
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Failed to update integration",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  const deleteMutation = useMutation({
+  
+  // Delete integration mutation
+  const deleteIntegrationMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/integrations/${id}`);
+      const res = await apiRequest('DELETE', `/api/integrations/${id}`);
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "API integration deleted successfully",
+        title: "Integration deleted",
+        description: "Integration has been deleted successfully.",
       });
+      setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ['/api/integrations'] });
-      setIsDeleteDialogOpen(false);
-      setIntegrationToDelete(null);
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Failed to delete integration",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
-  const toggleStatusMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/integrations/${id}/status`, { isActive });
+  
+  // Connect to integration
+  const connectIntegrationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('POST', `/api/integrations/${id}/connect`);
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "API integration status updated",
+        title: "Connection initiated",
+        description: "Attempting to connect to integration...",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/integrations/status'] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Connection failed",
         description: error.message,
         variant: "destructive",
       });
     },
   });
-
+  
+  // Disconnect from integration
+  const disconnectIntegrationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('POST', `/api/integrations/${id}/disconnect`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Disconnected",
+        description: "Integration has been disconnected successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/integrations/status'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Disconnect failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Test integration
   const testIntegrationMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("POST", `/api/integrations/${id}/test`, {});
+      const res = await apiRequest('POST', `/api/integrations/${id}/test`);
       return await res.json();
     },
     onSuccess: () => {
-      setTestResult({ 
-        success: true, 
-        message: "Connection to API was successful!" 
+      toast({
+        title: "Test successful",
+        description: "Integration test passed successfully.",
       });
     },
     onError: (error: Error) => {
-      setTestResult({ 
-        success: false, 
-        message: `Connection failed: ${error.message}` 
-      });
-    },
-  });
-
-  const form = useForm<ApiFormValues>({
-    resolver: zodResolver(apiFormSchema),
-    defaultValues: {
-      name: "",
-      provider: "",
-      apiKey: "",
-      endpoint: "",
-      isActive: true,
-      configuration: {},
-    },
-  });
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const handleAddNewClick = () => {
-    setEditingIntegration(null);
-    form.reset({
-      name: "",
-      provider: "",
-      apiKey: "",
-      endpoint: "",
-      isActive: true,
-      configuration: {},
-    });
-    setIsFormOpen(true);
-  };
-
-  const handleEditIntegration = (integration: ApiIntegration) => {
-    setEditingIntegration(integration);
-    form.reset({
-      name: integration.name,
-      provider: integration.provider,
-      apiKey: integration.apiKey || "",
-      endpoint: integration.endpoint || "",
-      isActive: integration.isActive,
-      configuration: integration.configuration 
-        ? JSON.stringify(integration.configuration, null, 2) 
-        : "{}",
-    });
-    setIsFormOpen(true);
-  };
-
-  const handleDeleteClick = (integration: ApiIntegration) => {
-    setIntegrationToDelete(integration);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleTestIntegration = (integration: ApiIntegration) => {
-    setTestingIntegration(integration);
-    setTestResult(null);
-    setIsTestingDialogOpen(true);
-    // Simulate testing the API
-    setTimeout(() => {
-      if (integration.isActive && integration.endpoint) {
-        testIntegrationMutation.mutate(integration.id);
-      } else {
-        setTestResult({
-          success: false,
-          message: "Integration is either inactive or missing endpoint information."
-        });
-      }
-    }, 1500);
-  };
-
-  const onSubmit = (data: ApiFormValues) => {
-    // Handle JSON configuration
-    try {
-      if (typeof data.configuration === 'string') {
-        JSON.parse(data.configuration);
-      }
-      
-      if (editingIntegration) {
-        updateMutation.mutate({ id: editingIntegration.id, data });
-      } else {
-        createMutation.mutate(data);
-      }
-    } catch (e) {
       toast({
-        title: "Invalid JSON",
-        description: "The configuration field must contain valid JSON",
+        title: "Test failed",
+        description: error.message,
         variant: "destructive",
       });
+    },
+  });
+  
+  // Handle form input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value,
+    });
+  };
+  
+  // Handle select changes
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+  
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      provider: '',
+      integrationType: 'http',
+      apiKey: '',
+      baseUrl: '',
+      endpoint: '',
+      config: '{}',
+      isActive: true
+    });
+    setIsEditing(false);
+    setSelectedIntegration(null);
+  };
+  
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Prepare data based on integration type
+    let submitData = { ...formData };
+    
+    // For SMPP, format config as JSON
+    if (formData.integrationType === 'smpp') {
+      try {
+        // Parse config if it's a string or create a default config
+        const configObj = formData.config ? 
+          (typeof formData.config === 'string' ? JSON.parse(formData.config) : formData.config) : 
+          {};
+          
+        submitData.config = JSON.stringify(configObj);
+      } catch (error) {
+        toast({
+          title: "Invalid JSON in config",
+          description: "Please provide valid JSON for the config field.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    if (isEditing && selectedIntegration) {
+      updateIntegrationMutation.mutate({ 
+        id: selectedIntegration.id, 
+        data: submitData 
+      });
+    } else {
+      createIntegrationMutation.mutate(submitData);
     }
   };
-
-  const getFilteredIntegrations = () => {
-    if (!integrations) return [];
+  
+  // Edit integration
+  const handleEditIntegration = (integration: ApiIntegration) => {
+    setSelectedIntegration(integration);
+    setIsEditing(true);
     
-    if (activeTab === 'all') return integrations;
-    return integrations.filter(integration => 
-      activeTab === 'active' ? integration.isActive : !integration.isActive
-    );
+    setFormData({
+      name: integration.name,
+      provider: integration.provider,
+      integrationType: integration.integrationType || 'http',
+      apiKey: integration.apiKey || '',
+      baseUrl: integration.baseUrl || '',
+      endpoint: integration.endpoint || '',
+      config: integration.config || '{}',
+      isActive: integration.isActive,
+    });
   };
-
-  const filteredIntegrations = getFilteredIntegrations();
-
+  
+  // Delete integration
+  const handleDeleteClick = (integration: ApiIntegration) => {
+    setSelectedIntegration(integration);
+    setShowDeleteDialog(true);
+  };
+  
+  // Confirm delete
+  const confirmDelete = () => {
+    if (selectedIntegration) {
+      deleteIntegrationMutation.mutate(selectedIntegration.id);
+    }
+  };
+  
+  // Handle test integration
+  const handleTestIntegration = (integration: ApiIntegration) => {
+    testIntegrationMutation.mutate(integration.id);
+  };
+  
+  // Get status badge color and text
+  const getStatusBadge = (id: number) => {
+    const smppStatus = statusData.smpp.find(s => s.id === id);
+    
+    if (!smppStatus) {
+      return <Badge variant="outline">Unknown</Badge>;
+    }
+    
+    switch (smppStatus.status) {
+      case 'connected':
+        return <Badge className="bg-green-500">Connected</Badge>;
+      case 'connecting':
+        return <Badge className="bg-blue-500">Connecting</Badge>;
+      case 'error':
+        return <Badge className="bg-red-500">Error</Badge>;
+      default:
+        return <Badge variant="outline">Disconnected</Badge>;
+    }
+  };
+  
+  // Filter integrations by type (for tab display)
+  const filteredIntegrations = integrations.filter(
+    integration => {
+      if (activeTab === 'sms' && (integration.integrationType === 'http' || integration.integrationType === 'smpp')) {
+        return true;
+      }
+      if (activeTab === 'voice' && integration.integrationType === 'voice') {
+        return true;
+      }
+      if (activeTab === 'payments' && integration.integrationType === 'payment') {
+        return true;
+      }
+      return false;
+    }
+  );
+  
+  // Create connection button based on type
+  const getConnectionButton = (integration: ApiIntegration) => {
+    if (integration.integrationType !== 'smpp') {
+      return null;
+    }
+    
+    const status = statusData.smpp.find(s => s.id === integration.id);
+    const isConnected = status?.status === 'connected';
+    
+    if (isConnected) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => disconnectIntegrationMutation.mutate(integration.id)}
+          disabled={disconnectIntegrationMutation.isPending}
+        >
+          {disconnectIntegrationMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : (
+            <PowerOff className="h-4 w-4 mr-1" />
+          )}
+          Disconnect
+        </Button>
+      );
+    } else {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => connectIntegrationMutation.mutate(integration.id)}
+          disabled={connectIntegrationMutation.isPending}
+        >
+          {connectIntegrationMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : (
+            <Power className="h-4 w-4 mr-1" />
+          )}
+          Connect
+        </Button>
+      );
+    }
+  };
+  
   return (
-    <div className="flex h-screen overflow-hidden bg-muted">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 md:relative md:flex transform transition-transform duration-300 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      }`}>
-        <SidebarNav />
+    <div className="container py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">API Integrations</h1>
       </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <HeaderNav title="API Integrations" toggleSidebar={toggleSidebar} />
-
-        {/* Main Scrollable Area */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">API Integrations</h1>
-              <p className="text-muted-foreground">Manage connections to SMS and voice providers</p>
-            </div>
-            <Button onClick={handleAddNewClick} className="flex items-center">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Integration
-            </Button>
-          </div>
-
-          {/* Integration Filters */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex justify-between items-center mb-6">
-                  <TabsList>
-                    <TabsTrigger value="all">All Integrations</TabsTrigger>
-                    <TabsTrigger value="active">Active</TabsTrigger>
-                    <TabsTrigger value="inactive">Inactive</TabsTrigger>
-                  </TabsList>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="sms">SMS & SMPP</TabsTrigger>
+          <TabsTrigger value="voice">Voice</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="sms" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Integration</CardTitle>
+              <CardDescription>
+                {isEditing ? "Update an existing SMS/SMPP integration" : "Configure a new SMS/SMPP integration"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Integration Name</Label>
+                    <Input 
+                      id="name" 
+                      name="name" 
+                      value={formData.name} 
+                      onChange={handleChange} 
+                      placeholder="e.g., Primary SMS Provider"
+                      required
+                    />
+                  </div>
                   
-                  <Button 
-                    onClick={() => refetch()}
-                    variant="outline" 
-                    className="flex items-center"
-                    disabled={isLoading}
-                  >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="provider">Provider</Label>
+                    <Input 
+                      id="provider" 
+                      name="provider" 
+                      value={formData.provider} 
+                      onChange={handleChange} 
+                      placeholder="e.g., Twilio, Infobip"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="integrationType">Integration Type</Label>
+                    <Select 
+                      value={formData.integrationType} 
+                      onValueChange={(value) => handleSelectChange('integrationType', value)}
+                    >
+                      <SelectTrigger id="integrationType">
+                        <SelectValue placeholder="Select Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="http">HTTP API</SelectItem>
+                        <SelectItem value="smpp">SMPP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="apiKey">API Key</Label>
+                    <Input 
+                      id="apiKey" 
+                      name="apiKey" 
+                      value={formData.apiKey} 
+                      onChange={handleChange} 
+                      placeholder="API Key or Authentication Token"
+                    />
+                  </div>
+                  
+                  {formData.integrationType === 'http' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="baseUrl">Base URL</Label>
+                        <Input 
+                          id="baseUrl" 
+                          name="baseUrl" 
+                          value={formData.baseUrl} 
+                          onChange={handleChange} 
+                          placeholder="e.g., https://api.provider.com"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="endpoint">Endpoint</Label>
+                        <Input 
+                          id="endpoint" 
+                          name="endpoint" 
+                          value={formData.endpoint} 
+                          onChange={handleChange} 
+                          placeholder="e.g., /v1/sms/send"
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {formData.integrationType === 'smpp' && (
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="config">SMPP Configuration (JSON)</Label>
+                      <Input 
+                        id="config" 
+                        name="config" 
+                        value={formData.config} 
+                        onChange={handleChange} 
+                        placeholder='{"host": "smpp.provider.com", "port": 2775, "systemId": "username", "password": "secret", "systemType": "", "connectionType": "trx", "autoConnect": false}'
+                      />
+                      <p className="text-xs text-gray-500">
+                        Host, port, systemId, password, systemType, connectionType (tx/rx/trx), autoConnect
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2 flex items-center">
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        id="isActive" 
+                        name="isActive"
+                        checked={formData.isActive}
+                        onCheckedChange={(checked) => setFormData({...formData, isActive: checked})}
+                      />
+                      <Label htmlFor="isActive">Active</Label>
+                    </div>
+                  </div>
                 </div>
                 
-                {/* Integration Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {isLoading ? (
-                    Array(3).fill(0).map((_, index) => (
-                      <Card key={index}>
-                        <CardHeader className="pb-2">
-                          <Skeleton className="h-5 w-32 mb-1" />
-                          <Skeleton className="h-4 w-24" />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <Skeleton className="h-4 w-16" />
-                              <Skeleton className="h-4 w-8" />
-                            </div>
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                          </div>
-                        </CardContent>
-                        <CardFooter className="pt-2 flex justify-end gap-2">
-                          <Skeleton className="h-9 w-20" />
-                          <Skeleton className="h-9 w-20" />
-                        </CardFooter>
-                      </Card>
-                    ))
-                  ) : filteredIntegrations.length > 0 ? (
-                    filteredIntegrations.map((integration) => (
-                      <Card key={integration.id} className={!integration.isActive ? 'opacity-70' : ''}>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <CardTitle className="text-lg">{integration.name}</CardTitle>
-                            <Badge variant={integration.isActive ? "outline" : "secondary"} className={integration.isActive ? "bg-success/10 text-success" : ""}>
-                              {integration.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                          <CardDescription>{integration.provider}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex items-center">
-                              <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                              <span className="text-sm truncate">{integration.endpoint || "No endpoint"}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <Key className="h-4 w-4 mr-2 text-muted-foreground" />
-                              <span className="text-sm">
-                                {integration.apiKey 
-                                  ? `${integration.apiKey.substring(0, 4)}...${integration.apiKey.substring(integration.apiKey.length - 4)}` 
-                                  : "No API key"}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                              <span className="text-sm">
-                                Added {new Date(integration.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="pt-2 flex justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Label htmlFor={`active-${integration.id}`} className="text-sm">Active</Label>
-                            <Switch 
-                              id={`active-${integration.id}`}
-                              checked={integration.isActive}
-                              onCheckedChange={(checked) => 
-                                toggleStatusMutation.mutate({ id: integration.id, isActive: checked })
+                <div className="flex gap-2">
+                  <Button 
+                    type="submit" 
+                    disabled={createIntegrationMutation.isPending || updateIntegrationMutation.isPending}
+                  >
+                    {(createIntegrationMutation.isPending || updateIntegrationMutation.isPending) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {isEditing ? "Update Integration" : "Add Integration"}
+                  </Button>
+                  
+                  {isEditing && (
+                    <Button type="button" variant="outline" onClick={resetForm}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>SMS & SMPP Integrations</CardTitle>
+              <CardDescription>
+                Manage your SMS and SMPP connections
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingIntegrations ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : filteredIntegrations.length === 0 ? (
+                <div className="text-center p-4 text-muted-foreground">
+                  No integrations found. Add one above.
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filteredIntegrations.map((integration) => (
+                    <div key={integration.id} className="py-4 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-medium">{integration.name}</h4>
+                          {integration.isActive ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700">Active</Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-700">Inactive</Badge>
+                          )}
+                          {integration.integrationType === 'smpp' && getStatusBadge(integration.id)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {integration.provider} - {integration.integrationType === 'smpp' ? 'SMPP Connection' : 'HTTP API'}
+                        </p>
+                        {integration.integrationType === 'smpp' && integration.config && (
+                          <p className="text-xs text-muted-foreground">
+                            {(() => {
+                              try {
+                                const config = JSON.parse(integration.config);
+                                return `${config.host}:${config.port} (${config.connectionType})`;
+                              } catch {
+                                return 'Invalid configuration';
                               }
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleTestIntegration(integration)}
-                            >
-                              Test
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEditIntegration(integration)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => handleDeleteClick(integration)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardFooter>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="col-span-full flex items-center justify-center h-32 bg-muted rounded-lg">
-                      <div className="text-center text-muted-foreground">
-                        <p>No integrations found</p>
-                        <Button 
-                          variant="link" 
-                          onClick={handleAddNewClick}
-                          className="mt-2"
+                            })()}
+                          </p>
+                        )}
+                        {integration.integrationType === 'http' && integration.baseUrl && (
+                          <p className="text-xs text-muted-foreground">
+                            {integration.baseUrl}{integration.endpoint}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {getConnectionButton(integration)}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditIntegration(integration)}
                         >
-                          Add your first integration
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDeleteClick(integration)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
                         </Button>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              </Tabs>
+              )}
             </CardContent>
           </Card>
-
-          {/* Add/Edit Integration Dialog */}
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>{editingIntegration ? "Edit Integration" : "Add New Integration"}</DialogTitle>
-                <DialogDescription>
-                  {editingIntegration 
-                    ? "Update the details of your API integration." 
-                    : "Connect your premium rate service to an SMS or voice provider."}
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Integration Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Twilio SMS" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          A descriptive name for this integration.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="provider"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Provider</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Twilio" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          The name of the service provider.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="apiKey"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>API Key</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter API key" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            The API key for authentication.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="endpoint"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>API Endpoint</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://api.example.com/v1" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            The base URL for API requests.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="configuration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Additional Configuration (JSON)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder='{"accountSid": "AC123456", "authToken": "auth_token_123"}'
-                            rows={5}
-                            value={typeof field.value === 'object' 
-                              ? JSON.stringify(field.value, null, 2) 
-                              : field.value || '{}'}
-                            onChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Additional configuration parameters in JSON format.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                          <FormLabel>Active Status</FormLabel>
-                          <FormDescription>
-                            Activate or deactivate this integration
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <DialogFooter>
-                    <Button 
-                      type="submit" 
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                    >
-                      {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Integration"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Confirmation Dialog */}
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-destructive">
-                  <AlertCircle className="h-5 w-5" />
-                  Confirm Deletion
-                </DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete the integration <strong>{integrationToDelete?.name}</strong>?
-                  This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={() => integrationToDelete && deleteMutation.mutate(integrationToDelete.id)}
-                  disabled={deleteMutation.isPending}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Test Integration Dialog */}
-          <Dialog open={isTestingDialogOpen} onOpenChange={setIsTestingDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Test Integration Connection</DialogTitle>
-                <DialogDescription>
-                  Testing connection to {testingIntegration?.name} ({testingIntegration?.provider})
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="py-6">
-                {testIntegrationMutation.isPending ? (
-                  <div className="flex flex-col items-center justify-center">
-                    <RefreshCw className="h-8 w-8 animate-spin text-primary mb-4" />
-                    <p>Testing connection to API endpoint...</p>
-                  </div>
-                ) : testResult ? (
-                  <div className={`rounded-lg p-4 ${testResult.success ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                    <div className="flex items-center mb-2">
-                      {testResult.success ? (
-                        <Check className="h-6 w-6 text-success mr-2" />
-                      ) : (
-                        <AlertCircle className="h-6 w-6 text-destructive mr-2" />
-                      )}
-                      <span className={`font-medium ${testResult.success ? 'text-success' : 'text-destructive'}`}>
-                        {testResult.success ? 'Success' : 'Error'}
-                      </span>
-                    </div>
-                    <p className="text-sm">{testResult.message}</p>
-                  </div>
-                ) : null}
+        </TabsContent>
+        
+        <TabsContent value="voice" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Voice Integrations</CardTitle>
+              <CardDescription>Coming soon - Voice API integrations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-12 text-muted-foreground">
+                <h3 className="text-lg font-medium mb-2">Voice Integrations Coming Soon</h3>
+                <p>This feature is under development. Check back later!</p>
               </div>
-              
-              <DialogFooter>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsTestingDialogOpen(false)}
-                >
-                  Close
-                </Button>
-                {testResult && (
-                  <Button 
-                    onClick={() => {
-                      setTestResult(null);
-                      testIntegrationMutation.mutate(testingIntegration!.id);
-                    }}
-                    disabled={testIntegrationMutation.isPending}
-                  >
-                    Test Again
-                  </Button>
-                )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </main>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="payments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Integrations</CardTitle>
+              <CardDescription>Coming soon - Payment gateway integrations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-12 text-muted-foreground">
+                <h3 className="text-lg font-medium mb-2">Payment Integrations Coming Soon</h3>
+                <p>Support for popular payment gateways is under development.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the integration &quot;{selectedIntegration?.name}&quot;. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
+              {deleteIntegrationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

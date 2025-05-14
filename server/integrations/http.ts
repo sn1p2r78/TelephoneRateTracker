@@ -24,24 +24,29 @@ export async function processIncomingSms(req: Request, res: Response) {
     
     // Find the number in our system
     const numbers = await storage.getAllNumbers();
-    const number = numbers.find(n => n.value === to);
+    const number = numbers.find(n => n.value === to || n.number === to);
     
     if (!number) {
       log(`Number ${to} not found in system`, 'webhook');
       return res.status(404).json({ error: "Number not found" });
     }
     
-    // Create SMS log
+    // Create SMS log with proper parsing
     const smsLog = await storage.createSMSLog({
-      numberValue: to,
-      numberName: number.name,
+      numberId: number.id,
+      numberValue: number.value || number.number,
+      numberName: number.name || `Number ${number.number}`,
       sender: from,
       recipient: to,
       message: text,
-      timestamp: new Date(timestamp).toISOString(),
+      messageLength: text.length,
       status: "RECEIVED",
       direction: "INBOUND",
-      providerName: provider || "HTTP_WEBHOOK"
+      providerName: provider || "HTTP_WEBHOOK",
+      countryCode: number.countryCode,
+      serviceType: number.serviceType,
+      timestamp: new Date(timestamp),
+      revenue: 0 // Will be calculated based on rules
     });
     
     // In a real system, you might want to:
@@ -73,27 +78,31 @@ export async function processIncomingCall(req: Request, res: Response) {
     
     // Find the number in our system
     const numbers = await storage.getAllNumbers();
-    const number = numbers.find(n => n.value === to);
+    const number = numbers.find(n => n.value === to || n.number === to);
     
     if (!number) {
       log(`Number ${to} not found in system`, 'webhook');
       return res.status(404).json({ error: "Number not found" });
     }
     
-    // Create call log
+    // Create call log with proper parsing
     const callLog = await storage.createCallLog({
-      numberValue: to,
-      numberName: number.name,
+      numberId: number.id,
+      numberValue: number.value || number.number,
+      numberName: number.name || `Number ${number.number}`,
       caller: from,
       recipient: to,
       callId,
-      startTime: new Date(timestamp).toISOString(),
+      startTime: new Date(timestamp),
       endTime: null,
       duration: 0,
       status: "RINGING",
       direction: "INBOUND",
       providerName: provider || "HTTP_WEBHOOK",
-      recording: null
+      countryCode: number.countryCode,
+      serviceType: number.serviceType,
+      recording: null,
+      revenue: 0 // Will be calculated based on rules
     });
     
     // In a real system, you might want to:

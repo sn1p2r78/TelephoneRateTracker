@@ -22,7 +22,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Premium Rate Numbers
 export const numbers = pgTable("numbers", {
   id: serial("id").primaryKey(),
+  name: text("name").notNull(),
   number: text("number").notNull().unique(),
+  value: text("value").notNull().unique(), // Full format of the number including country code, used for routing
   countryCode: text("country_code").notNull(),
   type: text("type").notNull(), // 'VOICE', 'SMS', 'COMBINED'
   serviceType: text("service_type").notNull(), // 'SUPPORT', 'ENTERTAINMENT', etc.
@@ -33,7 +35,9 @@ export const numbers = pgTable("numbers", {
 });
 
 export const insertNumberSchema = createInsertSchema(numbers).pick({
+  name: true,
   number: true,
+  value: true,
   countryCode: true,
   type: true,
   serviceType: true,

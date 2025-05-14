@@ -10,10 +10,18 @@ import {
   insertApiIntegrationSchema,
   insertSettingSchema
 } from "@shared/schema";
+import webhookRouter from "./routes/webhook";
+import { initializeIntegrations, getIntegrationsStatus } from "./integrations";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
+
+  // Set up webhooks routes
+  app.use('/api/webhooks', webhookRouter);
+  
+  // Initialize integrations (SMPP, HTTP, etc.)
+  await initializeIntegrations();
 
   // Premium Number Routes
   app.get("/api/numbers", async (req: Request, res: Response) => {
@@ -168,7 +176,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid API integration data" });
       }
       const apiIntegration = await storage.createApiIntegration(parsed.data);
+      
+      // Initialize the new integration
+      await initializeIntegrations();
+      
       res.status(201).json(apiIntegration);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/integrations/status", async (req: Request, res: Response) => {
+    try {
+      const status = await getIntegrationsStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.post("/api/integrations/:id/connect", async (req: Request, res: Response) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      const integration = await storage.getApiIntegration(integrationId);
+      
+      if (!integration) {
+        return res.status(404).json({ message: "Integration not found" });
+      }
+      
+      // Connect to the integration
+      if (integration.integrationType === 'smpp') {
+        const { smppManager } = await import('./integrations/smpp');
+        const connection = smppManager.initConnection(integration);
+        const success = await connection.connect();
+        
+        if (success) {
+          res.json({ message: "Connected successfully", status: "connected" });
+        } else {
+          res.status(500).json({ message: "Failed to connect", status: connection.status });
+        }
+      } else {
+        res.json({ message: "No connection needed for this integration type" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.post("/api/integrations/:id/disconnect", async (req: Request, res: Response) => {
+    try {
+      const integrationId = parseInt(req.params.id);
+      const integration = await storage.getApiIntegration(integrationId);
+      
+      if (!integration) {
+        return res.status(404).json({ message: "Integration not found" });
+      }
+      
+      // Disconnect from the integration
+      if (integration.integrationType === 'smpp') {
+        const { smppManager } = await import('./integrations/smpp');
+        const connection = smppManager.getConnection(integrationId);
+        
+        if (connection) {
+          await connection.disconnect();
+          res.json({ message: "Disconnected successfully", status: "disconnected" });
+        } else {
+          res.status(404).json({ message: "No active connection found" });
+        }
+      } else {
+        res.json({ message: "No connection to disconnect for this integration type" });
+      }
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
