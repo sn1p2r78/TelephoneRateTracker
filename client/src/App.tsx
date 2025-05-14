@@ -12,6 +12,8 @@ import NumberManagement from "@/pages/number-management";
 import UserMessages from "@/pages/user-messages";
 import Settings from "@/pages/settings";
 import ApiIntegrations from "@/pages/api-integrations";
+import ProvidersPage from "@/pages/providers";
+import PaymentManagement from "@/pages/payment-management";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -88,6 +90,14 @@ function App() {
           
           <Route path="/integrations">
             {!user ? <Redirect to="/auth" /> : <ApiIntegrations />}
+          </Route>
+          
+          <Route path="/providers">
+            {!user ? <Redirect to="/auth" /> : <ProvidersPage />}
+          </Route>
+          
+          <Route path="/payment-management">
+            {!user ? <Redirect to="/auth" /> : <PaymentManagement />}
           </Route>
           
           <Route>

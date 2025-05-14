@@ -358,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(eq(users.id, req.user.id));
       
-      if (!user || user.balance < amount) {
+      if (!user || !user.balance || user.balance < amount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
       
@@ -374,9 +374,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
       
       // Update user balance
+      const newBalance = user.balance ? user.balance - amount : 0;
       await db
         .update(users)
-        .set({ balance: user.balance - amount })
+        .set({ balance: newBalance })
         .where(eq(users.id, req.user.id));
       
       res.status(201).json(payout);

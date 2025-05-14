@@ -152,7 +152,9 @@ export default function PaymentManagementPage() {
     updatePaymentSettingsMutation.mutate(data as Partial<User>);
   };
 
-  const formatStatus = (status: string) => {
+  const formatStatus = (status: string | null) => {
+    if (!status) return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Unknown</span>;
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Pending</span>;
@@ -167,7 +169,9 @@ export default function PaymentManagementPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: Date | string | null) => {
+    if (!dateString) return '-';
+    
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric', 
       month: 'short', 
@@ -284,7 +288,7 @@ export default function PaymentManagementPage() {
               {isLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               ) : (
-                payouts?.filter(p => p.status.toLowerCase() === 'pending').length || 0
+                payouts?.filter(p => p.status && p.status.toLowerCase() === 'pending')?.length || 0
               )}
             </div>
           </CardContent>
