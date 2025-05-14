@@ -290,6 +290,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Provider routes
+  app.get("/api/providers", async (req: Request, res: Response) => {
+    try {
+      const providers = await db.select().from(providers);
+      res.json(providers);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post("/api/providers", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const providerData = insertProviderSchema.parse(req.body);
+      const [provider] = await db.insert(providers).values(providerData).returning();
+      res.status(201).json(provider);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // Payout routes
+  app.get("/api/payouts", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userPayouts = await db
+        .select()
+        .from(payouts)
+        .where(eq(payouts.userId, req.user.id))
+        .orderBy(desc(payouts.requestedAt));
+      
+      res.json(userPayouts);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  app.post("/api/payouts", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { amount, paymentMethod } = req.body;
+      
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+      
+      // Check if user has sufficient balance
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, req.user.id));
+      
+      if (!user || user.balance < amount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+      
+      // Create payout request
+      const [payout] = await db
+        .insert(payouts)
+        .values({
+          userId: req.user.id,
+          amount,
+          paymentMethod,
+          status: "pending"
+        })
+        .returning();
+      
+      // Update user balance
+      await db
+        .update(users)
+        .set({ balance: user.balance - amount })
+        .where(eq(users.id, req.user.id));
+      
+      res.status(201).json(payout);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
+  // User payment settings update
+  app.put("/api/user/payment-settings", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const updateData: Record<string, any> = {};
+      
+      // Only allow updating payment-related fields
+      const allowedFields = [
+        "paymentMethod", "bankAccountNumber", "bankName", 
+        "bankRoutingNumber", "usdtAddress"
+      ];
+      
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+      
+      const [updatedUser] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, req.user.id))
+        .returning();
+      
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   // Dashboard Analytics
   app.get("/api/dashboard", async (req: Request, res: Response) => {
     try {

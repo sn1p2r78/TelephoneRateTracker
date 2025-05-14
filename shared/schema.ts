@@ -8,7 +8,16 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   fullName: text("full_name").notNull(),
+  email: text("email"),
+  phoneNumber: text("phone_number"),
   role: text("role").notNull().default("admin"),
+  paymentMethod: text("payment_method").default("usdt"), // usdt or bank
+  bankAccountNumber: text("bank_account_number"),
+  bankName: text("bank_name"),
+  bankRoutingNumber: text("bank_routing_number"),
+  usdtAddress: text("usdt_address"),
+  balance: real("balance").default(0),
+  status: text("status").default("active"), // active, suspended, pending
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -16,7 +25,15 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   fullName: true,
+  email: true,
+  phoneNumber: true,
   role: true,
+  paymentMethod: true,
+  bankAccountNumber: true,
+  bankName: true,
+  bankRoutingNumber: true,
+  usdtAddress: true,
+  status: true,
 });
 
 // Premium Rate Numbers
@@ -187,6 +204,55 @@ export const insertSettingSchema = createInsertSchema(settings).pick({
   description: true,
 });
 
+// Provider details
+export const providers = pgTable("providers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  serviceType: text("service_type").notNull(), // Premium Numbers, SMS & Voice APIs
+  pricingDetails: text("pricing_details").notNull(),
+  supportedCountries: text("supported_countries"),
+  website: text("website"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProviderSchema = createInsertSchema(providers).pick({
+  name: true,
+  serviceType: true,
+  pricingDetails: true,
+  supportedCountries: true,
+  website: true,
+  contactEmail: true,
+  contactPhone: true,
+  notes: true,
+  isActive: true,
+});
+
+// User payments/payouts
+export const payouts = pgTable("payouts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  amount: real("amount").notNull(),
+  status: text("status").default("pending"), // pending, processing, completed, failed
+  paymentMethod: text("payment_method").notNull(),
+  transactionId: text("transaction_id"),
+  notes: text("notes"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertPayoutSchema = createInsertSchema(payouts).pick({
+  userId: true,
+  amount: true,
+  status: true,
+  paymentMethod: true,
+  transactionId: true,
+  notes: true,
+});
+
 // Types for all schemas
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -208,6 +274,12 @@ export type InsertApiIntegration = z.infer<typeof insertApiIntegrationSchema>;
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
+
+export type Provider = typeof providers.$inferSelect;
+export type InsertProvider = z.infer<typeof insertProviderSchema>;
+
+export type Payout = typeof payouts.$inferSelect;
+export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 
 // Activity type for recent activity combined view
 export type ActivityType = (CallLog | SMSLog) & {
