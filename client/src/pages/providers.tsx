@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Provider } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -54,14 +54,16 @@ export default function ProvidersPage() {
     queryKey: ["/api/providers"]
   });
   
-  // Handle error separately
-  if (error) {
-    toast({
-      title: "Error loading providers",
-      description: (error as Error).message,
-      variant: "destructive",
-    });
-  }
+  // Handle error in useEffect
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error loading providers",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   const serviceTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
