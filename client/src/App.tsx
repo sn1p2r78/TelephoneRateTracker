@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { Route, Switch } from "wouter";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -15,35 +13,8 @@ import UserMessages from "@/pages/user-messages";
 import Settings from "@/pages/settings";
 import ApiIntegrations from "@/pages/api-integrations";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
-
-// Simple protected route component
-function ProtectedRoute({ 
-  component: Component, 
-  ...rest 
-}: { 
-  component: React.ComponentType;
-  path: string;
-}) {
-  const { user, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  if (!user) {
-    // Redirect to login
-    window.location.href = "/auth";
-    return null;
-  }
-  
-  return <Component />;
-}
 
 // Basic loader to show while app initializes
 function AppLoader() {
@@ -67,7 +38,7 @@ function Redirect({ to }: { to: string }) {
   return null;
 }
 
-function AppRoutes() {
+function App() {
   const { user, isLoading } = useAuth();
   
   if (isLoading) {
@@ -75,66 +46,56 @@ function AppRoutes() {
   }
   
   return (
-    <Switch>
-      <Route path="/auth">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
-      </Route>
-      
-      <Route path="/">
-        <Redirect to={user ? "/dashboard" : "/auth"} />
-      </Route>
-      
-      <Route path="/dashboard">
-        {!user ? <Redirect to="/auth" /> : <Dashboard />}
-      </Route>
-      
-      <Route path="/calls">
-        {!user ? <Redirect to="/auth" /> : <CallLogs />}
-      </Route>
-      
-      <Route path="/sms">
-        {!user ? <Redirect to="/auth" /> : <SMSLogs />}
-      </Route>
-      
-      <Route path="/revenue">
-        {!user ? <Redirect to="/auth" /> : <RevenueReports />}
-      </Route>
-      
-      <Route path="/numbers">
-        {!user ? <Redirect to="/auth" /> : <NumberManagement />}
-      </Route>
-      
-      <Route path="/users">
-        {!user ? <Redirect to="/auth" /> : <UserMessages />}
-      </Route>
-      
-      <Route path="/settings">
-        {!user ? <Redirect to="/auth" /> : <Settings />}
-      </Route>
-      
-      <Route path="/integrations">
-        {!user ? <Redirect to="/auth" /> : <ApiIntegrations />}
-      </Route>
-      
-      <Route>
-        <NotFound />
-      </Route>
-    </Switch>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider defaultTheme="light" storageKey="prn-admin-theme">
-          <TooltipProvider>
-            <Toaster />
-            <AppRoutes />
-          </TooltipProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="light" storageKey="prn-admin-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Switch>
+          <Route path="/auth">
+            {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+          </Route>
+          
+          <Route path="/">
+            <Redirect to={user ? "/dashboard" : "/auth"} />
+          </Route>
+          
+          <Route path="/dashboard">
+            {!user ? <Redirect to="/auth" /> : <Dashboard />}
+          </Route>
+          
+          <Route path="/calls">
+            {!user ? <Redirect to="/auth" /> : <CallLogs />}
+          </Route>
+          
+          <Route path="/sms">
+            {!user ? <Redirect to="/auth" /> : <SMSLogs />}
+          </Route>
+          
+          <Route path="/revenue">
+            {!user ? <Redirect to="/auth" /> : <RevenueReports />}
+          </Route>
+          
+          <Route path="/numbers">
+            {!user ? <Redirect to="/auth" /> : <NumberManagement />}
+          </Route>
+          
+          <Route path="/users">
+            {!user ? <Redirect to="/auth" /> : <UserMessages />}
+          </Route>
+          
+          <Route path="/settings">
+            {!user ? <Redirect to="/auth" /> : <Settings />}
+          </Route>
+          
+          <Route path="/integrations">
+            {!user ? <Redirect to="/auth" /> : <ApiIntegrations />}
+          </Route>
+          
+          <Route>
+            <NotFound />
+          </Route>
+        </Switch>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
 
