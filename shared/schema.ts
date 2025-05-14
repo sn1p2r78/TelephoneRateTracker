@@ -46,19 +46,38 @@ export const insertNumberSchema = createInsertSchema(numbers).pick({
 export const callLogs = pgTable("call_logs", {
   id: serial("id").primaryKey(),
   numberId: integer("number_id").notNull(),
-  duration: integer("duration").notNull(), // in seconds
-  revenue: real("revenue").notNull(),
-  callerNumber: text("caller_number"),
-  timestamp: timestamp("timestamp").defaultNow(),
-  countryCode: text("country_code").notNull(),
-  serviceType: text("service_type").notNull(),
+  numberValue: text("number_value").notNull(),
+  numberName: text("number_name"),
+  caller: text("caller"),
+  recipient: text("recipient"),
+  callId: text("call_id"),
+  duration: integer("duration").default(0), // in seconds
+  revenue: real("revenue").default(0),
+  status: text("status").default("UNKNOWN"), // RINGING, ANSWERED, COMPLETED, FAILED, etc.
+  direction: text("direction").default("INBOUND"), // INBOUND, OUTBOUND
+  providerName: text("provider_name"),
+  recording: text("recording"), // URL to recording file
+  startTime: timestamp("start_time").defaultNow(),
+  endTime: timestamp("end_time"),
+  countryCode: text("country_code"),
+  serviceType: text("service_type"),
 });
 
 export const insertCallLogSchema = createInsertSchema(callLogs).pick({
   numberId: true,
+  numberValue: true,
+  numberName: true,
+  caller: true,
+  recipient: true,
+  callId: true,
   duration: true,
   revenue: true,
-  callerNumber: true,
+  status: true,
+  direction: true,
+  providerName: true,
+  recording: true,
+  startTime: true,
+  endTime: true,
   countryCode: true,
   serviceType: true,
 });
@@ -67,21 +86,36 @@ export const insertCallLogSchema = createInsertSchema(callLogs).pick({
 export const smsLogs = pgTable("sms_logs", {
   id: serial("id").primaryKey(),
   numberId: integer("number_id").notNull(),
-  messageLength: integer("message_length").notNull(),
-  revenue: real("revenue").notNull(),
-  senderNumber: text("sender_number"),
+  numberValue: text("number_value").notNull(),
+  numberName: text("number_name"),
+  sender: text("sender"),
+  recipient: text("recipient"),
   message: text("message"),
+  messageId: text("message_id"),
+  messageLength: integer("message_length"),
+  revenue: real("revenue").default(0),
+  status: text("status").default("UNKNOWN"), // RECEIVED, SENT, FAILED, DELIVERED, etc.
+  direction: text("direction").default("INBOUND"), // INBOUND, OUTBOUND
+  providerName: text("provider_name"),
   timestamp: timestamp("timestamp").defaultNow(),
-  countryCode: text("country_code").notNull(),
-  serviceType: text("service_type").notNull(),
+  countryCode: text("country_code"),
+  serviceType: text("service_type"),
 });
 
 export const insertSMSLogSchema = createInsertSchema(smsLogs).pick({
   numberId: true,
+  numberValue: true,
+  numberName: true,
+  sender: true,
+  recipient: true,
+  message: true,
+  messageId: true,
   messageLength: true,
   revenue: true,
-  senderNumber: true,
-  message: true,
+  status: true,
+  direction: true,
+  providerName: true,
+  timestamp: true,
   countryCode: true,
   serviceType: true,
 });
@@ -110,20 +144,26 @@ export const apiIntegrations = pgTable("api_integrations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   provider: text("provider").notNull(),
+  integrationType: text("integration_type").notNull(), // 'smpp', 'http', 'api'
   apiKey: text("api_key"),
+  baseUrl: text("base_url"),
   endpoint: text("endpoint"),
+  config: text("config"), // JSON stringified configuration
+  status: text("status").default("inactive"),
   isActive: boolean("is_active").notNull().default(true),
+  lastConnected: timestamp("last_connected"),
   createdAt: timestamp("created_at").defaultNow(),
-  configuration: json("configuration"),
 });
 
 export const insertApiIntegrationSchema = createInsertSchema(apiIntegrations).pick({
   name: true,
   provider: true,
+  integrationType: true,
   apiKey: true,
+  baseUrl: true,
   endpoint: true,
+  config: true,
   isActive: true,
-  configuration: true,
 });
 
 // Settings
