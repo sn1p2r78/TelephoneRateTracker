@@ -57,16 +57,18 @@ export default function PaymentManagementPage() {
   const [paymentMethod, setPaymentMethod] = useState(user?.paymentMethod || "usdt");
   
   // Query to get user's payouts
-  const { data: payouts, isLoading } = useQuery<Payout[]>({
-    queryKey: ["/api/payouts"],
-    onError: (error: Error) => {
-      toast({
-        title: "Error loading payouts",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  const { data: payouts, isLoading, error } = useQuery<Payout[]>({
+    queryKey: ["/api/payouts"]
   });
+  
+  // Handle error separately
+  if (error) {
+    toast({
+      title: "Error loading payouts",
+      description: (error as Error).message,
+      variant: "destructive",
+    });
+  }
 
   // Mutation to request a new payout
   const requestPayoutMutation = useMutation({

@@ -24,16 +24,18 @@ import { Button } from "@/components/ui/button";
 export default function ProvidersPage() {
   const { toast } = useToast();
   
-  const { data: providers, isLoading } = useQuery<Provider[]>({
-    queryKey: ["/api/providers"],
-    onError: (error: Error) => {
-      toast({
-        title: "Error loading providers",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  const { data: providers, isLoading, error } = useQuery<Provider[]>({
+    queryKey: ["/api/providers"]
   });
+  
+  // Handle error separately
+  if (error) {
+    toast({
+      title: "Error loading providers",
+      description: (error as Error).message,
+      variant: "destructive",
+    });
+  }
 
   const serviceTypeColor = (type: string) => {
     switch (type.toLowerCase()) {

@@ -13,7 +13,9 @@ import {
   Settings, 
   Cable, 
   LogOut,
-  Search
+  Search,
+  Building,
+  CreditCard
 } from "lucide-react";
 
 export default function SidebarNav() {
@@ -27,6 +29,8 @@ export default function SidebarNav() {
     { href: "/sms", label: "SMS Logs", icon: <MessageSquare className="w-5 h-5" /> },
     { href: "/revenue", label: "Revenue Reports", icon: <BarChart className="w-5 h-5" /> },
     { href: "/numbers", label: "Number Management", icon: <Hash className="w-5 h-5" /> },
+    { href: "/providers", label: "Providers", icon: <Building className="w-5 h-5" /> },
+    { href: "/payment-management", label: "Payment Management", icon: <CreditCard className="w-5 h-5" /> },
     { href: "/users", label: "User Messages", icon: <Users className="w-5 h-5" /> },
     { href: "/settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
     { href: "/integrations", label: "API Integrations", icon: <Cable className="w-5 h-5" /> },

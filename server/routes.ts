@@ -2,13 +2,20 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import { 
   insertNumberSchema, 
   insertCallLogSchema, 
   insertSMSLogSchema, 
   insertUserMessageSchema,
   insertApiIntegrationSchema,
-  insertSettingSchema
+  insertSettingSchema,
+  insertProviderSchema,
+  insertPayoutSchema,
+  users,
+  providers,
+  payouts,
 } from "@shared/schema";
 import webhookRouter from "./routes/webhook";
 import { initializeIntegrations, getIntegrationsStatus } from "./integrations";
@@ -293,8 +300,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Provider routes
   app.get("/api/providers", async (req: Request, res: Response) => {
     try {
-      const providers = await db.select().from(providers);
-      res.json(providers);
+      const providerList = await db.select().from(providers);
+      res.json(providerList);
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
