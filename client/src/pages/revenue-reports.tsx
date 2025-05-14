@@ -384,9 +384,12 @@ export default function RevenueReports() {
                     <Skeleton className="h-8 w-36" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold">${displayData.totalRevenue.toFixed(2)}</div>
+                      <div className="text-2xl font-bold">
+                        ${displayData.totalRevenue ? displayData.totalRevenue.toFixed(2) : '0.00'}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        ${displayData.callRevenue.toFixed(2)} from calls + ${displayData.smsRevenue.toFixed(2)} from SMS
+                        ${displayData.callRevenue ? displayData.callRevenue.toFixed(2) : '0.00'} from calls + 
+                        ${displayData.smsRevenue ? displayData.smsRevenue.toFixed(2) : '0.00'} from SMS
                       </p>
                     </>
                   )}
