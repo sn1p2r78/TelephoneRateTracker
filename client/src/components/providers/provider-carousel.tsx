@@ -134,7 +134,7 @@ export default function ProviderCarousel({ providers, onConnect }: ProviderCarou
                 </li>
                 <li className="flex items-start text-sm">
                   <Pin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
-                  <span>{provider.location || 'Location not specified'}</span>
+                  <span>{(provider as any).location || 'Location not specified'}</span>
                 </li>
               </ul>
             </div>

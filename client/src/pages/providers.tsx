@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Provider } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import ProviderCarousel from "@/components/providers/provider-carousel";
 import { 
   Table, 
   TableBody, 
@@ -96,6 +97,43 @@ export default function ProvidersPage() {
         </p>
       </div>
       
+      {/* Provider Carousel */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Featured Providers</h2>
+            <p className="text-muted-foreground">
+              Browse and connect with premium rate number service providers
+            </p>
+          </div>
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Provider
+          </Button>
+        </div>
+        
+        {isLoading ? (
+          <Card className="w-full">
+            <CardContent className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </CardContent>
+          </Card>
+        ) : providers && providers.length > 0 ? (
+          <div className="w-full mb-8">
+            <ProviderCarousel providers={providers} onConnect={handleConnect} />
+          </div>
+        ) : (
+          <Card className="w-full">
+            <CardContent className="flex items-center justify-center p-8">
+              <div className="text-center text-gray-500">
+                No providers found. Add your first provider to get started.
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      
+      {/* Provider Table */}
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -104,11 +142,6 @@ export default function ProvidersPage() {
               Partner with these providers to access premium rate numbers and SMS services
             </CardDescription>
           </div>
-          <Button variant="default">
-            <span className="sr-only">Add Provider</span>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Provider
-          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
