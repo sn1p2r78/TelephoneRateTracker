@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Provider } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -15,11 +16,35 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardFooter
 } from "@/components/ui/card";
-import { Loader2, ExternalLink } from "lucide-react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from "@/components/ui/accordion";
+import { Loader2, ExternalLink, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function ProvidersPage() {
   const { toast } = useToast();
@@ -54,6 +79,14 @@ export default function ProvidersPage() {
     }
   };
 
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
+  
+  const handleConnect = (provider: Provider) => {
+    setSelectedProvider(provider);
+    setShowConnectDialog(true);
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-8">
@@ -64,11 +97,18 @@ export default function ProvidersPage() {
       </div>
       
       <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Available Premium Rate Number Providers</CardTitle>
-          <CardDescription>
-            Partner with these providers to access premium rate numbers and SMS services
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Available Premium Rate Number Providers</CardTitle>
+            <CardDescription>
+              Partner with these providers to access premium rate numbers and SMS services
+            </CardDescription>
+          </div>
+          <Button variant="default">
+            <span className="sr-only">Add Provider</span>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Provider
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -89,8 +129,8 @@ export default function ProvidersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {providers.map((provider) => (
-                  <TableRow key={provider.id}>
+                {providers.map((provider: any) => (
+                  <TableRow key={provider.id} className="group">
                     <TableCell className="font-medium">{provider.name}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${serviceTypeColor(provider.serviceType)}`}>
@@ -122,7 +162,12 @@ export default function ProvidersPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleConnect(provider)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
                         Connect
                       </Button>
                     </TableCell>
@@ -137,6 +182,80 @@ export default function ProvidersPage() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Provider Connection Dialog */}
+      {selectedProvider && (
+        <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Connect to {selectedProvider.name}</DialogTitle>
+              <DialogDescription>
+                Enter your provider credentials to establish a connection.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="integrationType" className="text-right">Integration Type</Label>
+                <Select defaultValue="http">
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select integration type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="http">HTTP</SelectItem>
+                    <SelectItem value="smpp">SMPP</SelectItem>
+                    <SelectItem value="api">API</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="apiKey" className="text-right">API Key</Label>
+                <Input id="apiKey" placeholder="Enter API key" className="col-span-3" />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="baseUrl" className="text-right">Base URL</Label>
+                <Input id="baseUrl" placeholder="https://api.provider.com" className="col-span-3" />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="endpoint" className="text-right">Endpoint</Label>
+                <Input id="endpoint" placeholder="/v1/messages" className="col-span-3" />
+              </div>
+              
+              <div className="col-span-4">
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="additional-settings">
+                    <AccordionTrigger>Advanced Settings</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="username" className="text-right">Username</Label>
+                          <Input id="username" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="password" className="text-right">Password</Label>
+                          <Input id="password" type="password" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="port" className="text-right">Port</Label>
+                          <Input id="port" type="number" className="col-span-3" />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowConnectDialog(false)}>Cancel</Button>
+              <Button>Connect Provider</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       
       <div className="grid md:grid-cols-2 gap-6">
         <Card>

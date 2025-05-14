@@ -196,7 +196,8 @@ export default function PaymentManagementPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${user?.balance?.toFixed(2) || "0.00"}</div>
+            <div className="text-3xl font-bold text-primary">${user?.balance?.toFixed(2) || "0.00"}</div>
+            <div className="text-xs text-muted-foreground mt-1">Available for withdrawal</div>
           </CardContent>
           <CardFooter>
             <Dialog open={open} onOpenChange={setOpen}>

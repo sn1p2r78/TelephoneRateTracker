@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   LayoutDashboard, 
   Phone, 
@@ -100,13 +101,16 @@ export default function SidebarNav() {
             <p className="text-sm font-medium">{user?.fullName || user?.username || 'User'}</p>
             <p className="text-xs text-muted-foreground">{user?.role || 'Administrator'}</p>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="ml-auto text-muted-foreground hover:text-primary"
-            disabled={logoutMutation.isPending}
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="ml-auto flex items-center space-x-2">
+            <ThemeToggle />
+            <button 
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-primary"
+              disabled={logoutMutation.isPending}
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
