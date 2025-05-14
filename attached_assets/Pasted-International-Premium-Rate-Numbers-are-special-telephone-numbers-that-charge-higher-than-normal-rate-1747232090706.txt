@@ -1,0 +1,202 @@
+International Premium Rate Numbers are special telephone numbers that charge higher-than-normal rates for calls or SMS. The extra cost is typically shared between the telecom provider and the service provider. These numbers are often used for services like:
+
+Voting (TV shows)
+
+Adult content
+
+Technical support scams (in bad cases)
+
+Psychic or fortune-telling lines
+
+Ringtones, horoscopes, etc.
+
+Common Prefixes by Country (Examples)
+Country	Prefix (Call)	Prefix (SMS)	Notes
+United Kingdom	090x, 070x	6xxxx, 8xxxx	09 for premium voice, 6/8 for SMS
+USA/Canada	1-900	Short codes	900 numbers for voice only
+Germany	0900	8xxxx	0900 for premium calls
+France	089x	6xxxx, 8xxxx	089 for voice, SMS services too
+Australia	190x	19xxxx	Common for adult/entertainment
+Japan	0990	2xxxx	0990 used for special services
+Russia	809	6xxxx, 7xxxx	Premium SMS and voice both used
+Nigeria	700, 800	3xxxx, 5xxxx	Telecom/media services
+South Africa	086x, 087x	3xxxx, 4xxxx	Premium IVR and mobile billing
+
+Companies That Offer Premium Rate Services
+Here are some premium SMS/call service providers that operate internationally:
+
+Company Name	Services Provided	Region
+Boku	Carrier billing, premium SMS	Global
+Fortumo	Mobile payments, premium SMS	Global
+Infobip	SMS API, premium SMS, voice	Global
+Mobivate	Premium SMS, short codes, mobile billing	Africa, UK
+mGage (Kaleyra)	SMS services, mobile engagement	Global
+NTH Mobile	Premium SMS and billing solutions	Europe
+DIMOKA	International premium rate number leasing	Worldwide
+Tanla Platforms	Premium messaging, cloud communications	India, Global
+TXTImpact	Short codes, SMS campaigns	US
+Tyntec	Enterprise SMS and premium messaging	Global
+
+Would you like:
+
+A downloadable list (CSV/Excel)?
+
+Focus on specific countries or services?
+
+Info on how to register and use these services?
+
+
+
+
+
+
+
+You said:
+how to make panel for premium rate numbers service
+
+
+ChatGPT said:
+Creating a panel for a Premium Rate Number (PRN) service involves building a system that allows you to manage, track, and monetize incoming calls or SMS messages. Here’s a full breakdown of how to make your own panel, both technically and legally.
+
+🔐 Important Note First:
+Premium rate services are regulated and must comply with telecom laws in each country. You’ll need:
+
+Agreements with carriers or aggregators
+
+Registered business status
+
+Legal terms & privacy policies
+
+Clear content use (e.g. adult content needs extra approval)
+
+🧱 Step-by-Step: Building a PRN Service Panel
+1. Get Access to Premium Numbers
+You need to partner with an aggregator or a telecom provider that can provide:
+
+Premium rate voice numbers (e.g., 0900, 1-900)
+
+Shortcodes for SMS (e.g., 5-digit SMS codes)
+
+Popular providers:
+
+Infobip
+
+Fortumo
+
+Boku
+
+Mobivate
+
+Dimoka
+
+Twilio (only shortcodes, not voice premium)
+
+2. Define Your Service
+What are you offering? (chat, voting, adult content, support, games, etc.)
+
+Voice or SMS based?
+
+One-time or subscription?
+
+3. Build the Admin Panel (Tech Stack)
+🖥️ Frontend (Web Interface):
+Use any web framework:
+
+React, Vue.js, or HTML/CSS/JS
+
+Pages:
+
+Dashboard
+
+Incoming Calls/SMS Logs
+
+Revenue Reports
+
+User Messages
+
+Settings (Keyword management, pricing, auto-reply)
+
+⚙️ Backend:
+Use Node.js, Python (Django/Flask), PHP (Laravel) or Go
+
+Authentication & roles (admin, support)
+
+APIs to connect with provider (Infobip, Twilio, etc.)
+
+Billing and revenue tracking
+
+Auto-responders for SMS
+
+Logs storage (MySQL, PostgreSQL, MongoDB)
+
+📞 Provider Integration:
+Most providers give REST APIs or SMPP gateways:
+
+Receive incoming messages/calls
+
+Send replies
+
+Get delivery receipts
+
+Access usage statistics
+
+Example (Twilio webhook for incoming SMS):
+
+python
+Copy
+Edit
+@app.route("/sms", methods=['POST'])
+def sms_reply():
+    from_number = request.form['From']
+    message_body = request.form['Body']
+    # Log and respond
+    return f"<Response><Message>Hello, you sent: {message_body}</Message></Response>"
+4. Add Billing & Revenue Tracking
+Track revenue per number or shortcode
+
+Handle country-wise rate variation
+
+Allow payout tracking if working with partners/resellers
+
+5. Hosting & Security
+Use VPS or cloud (e.g., DigitalOcean, AWS, Hetzner)
+
+SSL (HTTPS), DDoS protection, anti-spam filters
+
+GDPR compliance (if EU traffic involved)
+
+6. Analytics & Notifications
+User statistics
+
+Income graphs
+
+Alert system (SMS/email when new messages come in)
+
+7. Extra Features (Optional)
+User Panel: Let clients rent your numbers
+
+Webhook forwarding: Forward SMS to client websites
+
+Chatbot with AI for auto SMS replies
+
+Voice IVR with Twilio or Asterisk
+
+⚖️ Legal & Compliance Checklist
+Register your service with telecom regulators (like Ofcom in UK, FCC in US)
+
+Provide opt-out methods (STOP to unsubscribe)
+
+Clear pricing displayed to users
+
+Adult or sensitive content must be age-gated
+
+✅ Want a Starter Template?
+I can generate:
+
+A full React + Node.js boilerplate panel
+
+Or a Django-based admin panel
+
+With simulated data and Twilio/Infobip webhook integration
+
+Let me know your tech preference or whether it’s SMS or call-focused.
