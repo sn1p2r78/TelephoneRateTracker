@@ -317,6 +317,29 @@ export type SmsAutoResponder = typeof smsAutoResponders.$inferSelect;
 export type InsertSmsAutoResponder = z.infer<typeof insertSmsAutoResponderSchema>;
 
 // Activity type for recent activity combined view
+// Message History (CDIR) for tracking all incoming messages
+export const messageHistory = pgTable("message_history", {
+  id: serial("id").primaryKey(),
+  phoneNumber: text("phone_number").notNull(),
+  messageText: text("message_text").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  isProcessed: boolean("is_processed").default(false),
+  responseText: text("response_text"),
+  responseTimestamp: timestamp("response_timestamp"),
+});
+
+export const insertMessageHistorySchema = createInsertSchema(messageHistory).pick({
+  phoneNumber: true,
+  messageText: true,
+  timestamp: true,
+  isProcessed: true,
+  responseText: true,
+  responseTimestamp: true,
+});
+
+export type MessageHistory = typeof messageHistory.$inferSelect;
+export type InsertMessageHistory = z.infer<typeof insertMessageHistorySchema>;
+
 export type ActivityType = (CallLog | SMSLog) & {
   activityType: 'call' | 'sms';
   numberValue: string;

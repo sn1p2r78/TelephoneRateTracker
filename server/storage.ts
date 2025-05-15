@@ -8,7 +8,8 @@ import {
   Setting, InsertSetting,
   ActivityType,
   SmsAutoResponder, InsertSmsAutoResponder,
-  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings, smsAutoResponders
+  MessageHistory, InsertMessageHistory,
+  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings, smsAutoResponders, messageHistory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";
@@ -69,6 +70,12 @@ export interface IStorage {
   updateAutoResponder(id: number, autoResponder: InsertSmsAutoResponder): Promise<SmsAutoResponder | undefined>;
   deleteAutoResponder(id: number): Promise<boolean>;
   getMatchingAutoResponders(numberId: number, message: string): Promise<SmsAutoResponder[]>;
+  
+  // Message History (CDIR)
+  getAllMessageHistory(): Promise<MessageHistory[]>;
+  getMessageHistoryByNumber(phoneNumber: string): Promise<MessageHistory[]>;
+  createMessageHistory(message: InsertMessageHistory): Promise<MessageHistory>;
+  updateMessageResponse(id: number, responseText: string): Promise<MessageHistory | undefined>;
   
   // Dashboard Analytics
   getTotalRevenue(): Promise<number>;
@@ -465,6 +472,99 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error getting matching auto-responders:", error);
       return [];
+    }
+  }
+  
+  // Message History (CDIR) Implementation
+  async getAllMessageHistory(): Promise<MessageHistory[]> {
+    try {
+      const messages = await db
+        .select()
+        .from(messageHistory)
+        .orderBy(desc(messageHistory.timestamp));
+      return messages;
+    } catch (error) {
+      console.error("Error getting all message history:", error);
+      return [];
+    }
+  }
+  
+  async getMessageHistoryByNumber(phoneNumber: string): Promise<MessageHistory[]> {
+    try {
+      const messages = await db
+        .select()
+        .from(messageHistory)
+        .where(eq(messageHistory.phoneNumber, phoneNumber))
+        .orderBy(desc(messageHistory.timestamp));
+      return messages;
+    } catch (error) {
+      console.error("Error getting message history by phone number:", error);
+      return [];
+    }
+  }
+  
+  async createMessageHistory(message: InsertMessageHistory): Promise<MessageHistory> {
+    try {
+      const [newMessage] = await db
+        .insert(messageHistory)
+        .values(message)
+        .returning();
+      
+      // If we have a message, try to find a matching auto-responder
+      if (message.messageText) {
+        // Get all numbers to find a matching one
+        const allNumbers = await this.getAllNumbers();
+        
+        // Try to find a number that contains this phone number (removing any prefixes like +)
+        const cleanPhoneNumber = message.phoneNumber.replace(/^\+/, '');
+        const matchingNumber = allNumbers.find(num => 
+          cleanPhoneNumber.includes(num.number) || num.number.includes(cleanPhoneNumber)
+        );
+        
+        if (matchingNumber) {
+          const matchingResponders = await this.getMatchingAutoResponders(
+            matchingNumber.id, 
+            message.messageText
+          );
+          
+          if (matchingResponders.length > 0) {
+            // We have a match, update the response
+            const topResponder = matchingResponders[0];
+            await this.updateMessageResponse(newMessage.id, topResponder.responseMessage);
+            
+            // Also get the updated message to return
+            const [updatedMessage] = await db
+              .select()
+              .from(messageHistory)
+              .where(eq(messageHistory.id, newMessage.id));
+              
+            return updatedMessage;
+          }
+        }
+      }
+      
+      return newMessage;
+    } catch (error) {
+      console.error("Error creating message history:", error);
+      throw error;
+    }
+  }
+  
+  async updateMessageResponse(id: number, responseText: string): Promise<MessageHistory | undefined> {
+    try {
+      const [updatedMessage] = await db
+        .update(messageHistory)
+        .set({
+          responseText,
+          responseTimestamp: new Date(),
+          isProcessed: true
+        })
+        .where(eq(messageHistory.id, id))
+        .returning();
+      return updatedMessage;
+    } catch (error) {
+      console.error("Error updating message response:", error);
+      return undefined;
     }
   }
 }

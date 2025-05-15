@@ -450,6 +450,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Message History (CDIR) Routes
+  app.get("/api/messages", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const messages = await storage.getAllMessageHistory();
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/messages/number/:phoneNumber", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { phoneNumber } = req.params;
+      const messages = await storage.getMessageHistoryByNumber(phoneNumber);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  // Endpoint to receive messages via GET (for easy testing)
+  app.get("/api/sms-webhook", async (req: Request, res: Response) => {
+    try {
+      const { number, datetime, text } = req.query;
+      
+      if (!number || !text) {
+        return res.status(400).json({ 
+          message: "Missing required parameters", 
+          requiredFormat: "/api/sms-webhook?number=123456789&datetime=YYYY-MM-DD HH:MM&text=YourMessage"
+        });
+      }
+      
+      let timestamp: Date;
+      if (datetime) {
+        timestamp = new Date(datetime as string);
+        if (isNaN(timestamp.getTime())) {
+          timestamp = new Date(); // Use current time if parsing fails
+        }
+      } else {
+        timestamp = new Date();
+      }
+      
+      const messageData = {
+        phoneNumber: number as string,
+        messageText: text as string,
+        timestamp
+      };
+      
+      // Create the message history entry
+      const message = await storage.createMessageHistory(messageData);
+      
+      // Return the response, including any auto-response if applicable
+      res.json({
+        success: true,
+        message: "Message received successfully",
+        data: message
+      });
+    } catch (error) {
+      console.error("Error processing message webhook:", error);
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
   // Provider routes
   app.get("/api/providers", async (req: Request, res: Response) => {
     try {
