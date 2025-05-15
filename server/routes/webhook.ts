@@ -3,7 +3,8 @@ import {
   processIncomingSms, 
   processIncomingCall, 
   processCallStatus, 
-  processDlrStatus 
+  processDlrStatus,
+  processVoiceCallGet
 } from "../integrations/http";
 import { log } from "../vite";
 import { storage } from "../storage";
@@ -82,6 +83,10 @@ webhookRouter.post('/voice/incoming', processIncomingCall);
 
 // Handle call status updates
 webhookRouter.post('/voice/status', processCallStatus);
+
+// Handle voice calls via GET for easy integration
+// Format: /api/webhooks/voice?caller_id=123456789&number=987654321&duration=60&timestamp=2025-05-15 12:45:00
+webhookRouter.get('/voice', processVoiceCallGet);
 
 // Generic webhook for any provider
 // This endpoint allows any provider to use different parameters, and we'll parse them based on the 'provider' field

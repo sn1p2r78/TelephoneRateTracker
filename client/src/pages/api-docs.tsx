@@ -58,6 +58,8 @@ const voiceWebhookCodeCurl = `curl -X POST "https://yourdomain.com/api/webhooks/
   -H "Content-Type: application/json" \\
   -d '{"number":"123456789","caller_id":"987654321","timestamp":"2025-05-15T12:45:00.000Z"}'`;
 
+const voiceWebhookGetCodeCurl = `curl "https://yourdomain.com/api/webhooks/voice?caller_id=987654321&number=123456789&duration=60&timestamp=2025-05-15%2012:45:00"`;
+
 const voiceWebhookCodeNode = `const axios = require('axios');
 
 // Sending a call notification to the webhook
@@ -65,6 +67,24 @@ axios.post('https://yourdomain.com/api/webhooks/voice/incoming', {
   number: '123456789',
   caller_id: '987654321',
   timestamp: new Date().toISOString()
+})
+.then(response => {
+  console.log('Call notification sent:', response.data);
+})
+.catch(error => {
+  console.error('Error sending call notification:', error);
+});`;
+
+const voiceWebhookGetCodeNode = `const axios = require('axios');
+
+// Sending a call notification to the webhook using GET
+axios.get('https://yourdomain.com/api/webhooks/voice', {
+  params: {
+    caller_id: '987654321',
+    number: '123456789',
+    duration: 60,
+    timestamp: new Date().toISOString()
+  }
 })
 .then(response => {
   console.log('Call notification sent:', response.data);
@@ -84,6 +104,20 @@ data = {
 }
 
 response = requests.post('https://yourdomain.com/api/webhooks/voice/incoming', json=data)
+print('Call notification sent:', response.json())`;
+
+const voiceWebhookGetCodePython = `import requests
+from datetime import datetime
+
+# Sending a call notification using GET
+params = {
+    'caller_id': '987654321',
+    'number': '123456789',
+    'duration': 60,
+    'timestamp': datetime.now().isoformat()
+}
+
+response = requests.get('https://yourdomain.com/api/webhooks/voice', params=params)
 print('Call notification sent:', response.json())`;
 
 const genericWebhookCodeCurl = `curl -X POST "https://yourdomain.com/api/webhooks/generic" \\
@@ -390,71 +424,196 @@ export default function ApiDocsPage() {
                     <div>
                       <h3 className="text-lg font-semibold mb-4">Code Examples</h3>
                       
-                      <Tabs defaultValue="curl" className="mt-4">
+                      <Tabs defaultValue="post" className="mt-4">
                         <TabsList>
-                          <TabsTrigger value="curl">cURL</TabsTrigger>
-                          <TabsTrigger value="node">Node.js</TabsTrigger>
-                          <TabsTrigger value="python">Python</TabsTrigger>
+                          <TabsTrigger value="post">POST Method</TabsTrigger>
+                          <TabsTrigger value="get">GET Method</TabsTrigger>
                         </TabsList>
                         
-                        <TabsContent value="curl">
-                          <div className="relative">
-                            <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
-                              {voiceWebhookCodeCurl}
-                            </pre>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => copyToClipboard(voiceWebhookCodeCurl, "voiceCodeCurl")}
-                            >
-                              {copiedStates["voiceCodeCurl"] ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
+                        <TabsContent value="post">
+                          <p className="text-muted-foreground mb-4">Using POST method with JSON body:</p>
+                          <Tabs defaultValue="curl" className="mt-4">
+                            <TabsList>
+                              <TabsTrigger value="curl">cURL</TabsTrigger>
+                              <TabsTrigger value="node">Node.js</TabsTrigger>
+                              <TabsTrigger value="python">Python</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="curl">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookCodeCurl}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookCodeCurl, "voiceCodeCurl")}
+                                >
+                                  {copiedStates["voiceCodeCurl"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="node">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookCodeNode}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookCodeNode, "voiceCodeNode")}
+                                >
+                                  {copiedStates["voiceCodeNode"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="python">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookCodePython}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookCodePython, "voiceCodePython")}
+                                >
+                                  {copiedStates["voiceCodePython"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
                         </TabsContent>
                         
-                        <TabsContent value="node">
-                          <div className="relative">
-                            <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
-                              {voiceWebhookCodeNode}
-                            </pre>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => copyToClipboard(voiceWebhookCodeNode, "voiceCodeNode")}
-                            >
-                              {copiedStates["voiceCodeNode"] ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
+                        <TabsContent value="get">
+                          <p className="text-muted-foreground mb-4">Using GET method with URL parameters (simpler integration):</p>
+                          <div className="bg-muted p-3 rounded-md mb-4 text-sm">
+                            <code className="text-sm font-medium">Endpoint URL: /api/webhooks/voice</code>
                           </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="python">
-                          <div className="relative">
-                            <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
-                              {voiceWebhookCodePython}
-                            </pre>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => copyToClipboard(voiceWebhookCodePython, "voiceCodePython")}
-                            >
-                              {copiedStates["voiceCodePython"] ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
+                          
+                          <div className="mb-4">
+                            <h4 className="font-semibold mb-2">Parameters</h4>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Parameter</TableHead>
+                                  <TableHead>Type</TableHead>
+                                  <TableHead>Required</TableHead>
+                                  <TableHead>Description</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">caller_id</TableCell>
+                                  <TableCell>string</TableCell>
+                                  <TableCell>Yes</TableCell>
+                                  <TableCell>The caller's phone number</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">number</TableCell>
+                                  <TableCell>string</TableCell>
+                                  <TableCell>Yes</TableCell>
+                                  <TableCell>The phone number receiving the call</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">duration</TableCell>
+                                  <TableCell>integer</TableCell>
+                                  <TableCell>No</TableCell>
+                                  <TableCell>Call duration in seconds (if completed)</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">timestamp</TableCell>
+                                  <TableCell>string (datetime)</TableCell>
+                                  <TableCell>No</TableCell>
+                                  <TableCell>The timestamp of the call (defaults to current time)</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
                           </div>
+                          
+                          <Tabs defaultValue="curl" className="mt-4">
+                            <TabsList>
+                              <TabsTrigger value="curl">cURL</TabsTrigger>
+                              <TabsTrigger value="node">Node.js</TabsTrigger>
+                              <TabsTrigger value="python">Python</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="curl">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookGetCodeCurl}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookGetCodeCurl, "voiceGetCodeCurl")}
+                                >
+                                  {copiedStates["voiceGetCodeCurl"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="node">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookGetCodeNode}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookGetCodeNode, "voiceGetCodeNode")}
+                                >
+                                  {copiedStates["voiceGetCodeNode"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="python">
+                              <div className="relative">
+                                <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto">
+                                  {voiceWebhookGetCodePython}
+                                </pre>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => copyToClipboard(voiceWebhookGetCodePython, "voiceGetCodePython")}
+                                >
+                                  {copiedStates["voiceGetCodePython"] ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
                         </TabsContent>
                       </Tabs>
                     </div>

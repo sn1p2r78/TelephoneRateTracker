@@ -195,6 +195,57 @@ export async function processDlrStatus(req: Request, res: Response) {
   }
 }
 
+// Process voice call via GET endpoint
+export async function processVoiceCallGet(req: Request, res: Response) {
+  try {
+    const { caller_id, number, duration, timestamp } = req.query;
+    
+    if (!caller_id || !number) {
+      return res.status(400).json({ error: "Missing required parameters: caller_id, number" });
+    }
+    
+    log(`CDIR Voice call received via GET: caller=${caller_id}, number=${number}`, 'webhook');
+    
+    // Find the number in our system
+    const numbers = await storage.getAllNumbers();
+    const targetNumber = numbers.find(n => n.value === number || n.number === number.toString());
+    
+    if (!targetNumber) {
+      log(`Number ${number} not found in system`, 'webhook');
+      return res.status(404).json({ error: "Number not found" });
+    }
+    
+    // Create call log 
+    const callLog = await storage.createCallLog({
+      numberId: targetNumber.id,
+      numberValue: targetNumber.value || targetNumber.number,
+      numberName: targetNumber.name || `Number ${targetNumber.number}`,
+      caller: caller_id.toString(),
+      recipient: number.toString(),
+      callId: `manual-${Date.now()}`,
+      startTime: timestamp ? new Date(timestamp.toString()) : new Date(),
+      endTime: duration ? new Date(Date.now() + (parseInt(duration.toString()) * 1000)) : null,
+      duration: duration ? parseInt(duration.toString()) : 0,
+      status: duration ? "COMPLETED" : "RINGING",
+      direction: "INBOUND",
+      providerName: "HTTP_GET_WEBHOOK",
+      countryCode: targetNumber.countryCode,
+      serviceType: targetNumber.serviceType,
+      recording: null,
+      revenue: 0 // Will be calculated based on rules
+    });
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Call notification received",
+      id: callLog.id 
+    });
+  } catch (error: any) {
+    log(`Error processing voice call via GET: ${error.message}`, 'webhook');
+    res.status(500).json({ error: error.message });
+  }
+}
+
 // Generate webhook URLs for a provider
 export function generateWebhookUrls(baseUrl: string) {
   return {
