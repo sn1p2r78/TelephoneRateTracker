@@ -7,7 +7,8 @@ import {
   ApiIntegration, InsertApiIntegration, 
   Setting, InsertSetting,
   ActivityType,
-  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings
+  SmsAutoResponder, InsertSmsAutoResponder,
+  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings, smsAutoResponders
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";

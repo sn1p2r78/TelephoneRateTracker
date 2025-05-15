@@ -285,6 +285,37 @@ export type InsertProvider = z.infer<typeof insertProviderSchema>;
 export type Payout = typeof payouts.$inferSelect;
 export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 
+// SMS Auto-responders
+export const smsAutoResponders = pgTable("sms_auto_responders", {
+  id: serial("id").primaryKey(),
+  numberId: integer("number_id").notNull().references(() => numbers.id),
+  name: text("name").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  triggerType: text("trigger_type").notNull().default("keyword"), // keyword, regex, any
+  triggerValue: text("trigger_value"), // the keyword or regex pattern to match
+  responseMessage: text("response_message").notNull(),
+  responseDelay: integer("response_delay").default(0), // delay in seconds
+  matchCase: boolean("match_case").default(false), // whether to match case sensitively
+  priority: integer("priority").default(0), // higher number = higher priority
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSmsAutoResponderSchema = createInsertSchema(smsAutoResponders).pick({
+  numberId: true,
+  name: true,
+  isActive: true,
+  triggerType: true,
+  triggerValue: true,
+  responseMessage: true,
+  responseDelay: true,
+  matchCase: true,
+  priority: true,
+});
+
+export type SmsAutoResponder = typeof smsAutoResponders.$inferSelect;
+export type InsertSmsAutoResponder = z.infer<typeof insertSmsAutoResponderSchema>;
+
 // Activity type for recent activity combined view
 export type ActivityType = (CallLog | SMSLog) & {
   activityType: 'call' | 'sms';
