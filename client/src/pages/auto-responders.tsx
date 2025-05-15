@@ -351,7 +351,8 @@ export default function AutoRespondersPage() {
                           </TableCell>
                           <TableCell>{responder.priority}</TableCell>
                           <TableCell>
-                            <Badge variant={responder.isActive ? "success" : "destructive"}>
+                            <Badge variant={responder.isActive ? "default" : "destructive"}
+                                   className={responder.isActive ? "bg-green-500 hover:bg-green-600" : ""}>
                               {responder.isActive ? "Active" : "Inactive"}
                             </Badge>
                           </TableCell>

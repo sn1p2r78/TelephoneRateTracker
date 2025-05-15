@@ -101,6 +101,10 @@ function App() {
             {!user ? <Redirect to="/auth" /> : <PaymentManagement />}
           </Route>
           
+          <Route path="/auto-responders">
+            {!user ? <Redirect to="/auth" /> : <AutoResponders />}
+          </Route>
+          
           <Route>
             <NotFound />
           </Route>
