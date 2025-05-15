@@ -70,8 +70,15 @@ export default function CDIRPage() {
   // Get unique phone numbers from all messages
   const uniqueNumbers = React.useMemo(() => {
     if (!allMessages) return [];
-    const numbers = allMessages.map((message) => message.phoneNumber);
-    return [...new Set(numbers)];
+    
+    // Create a map to track unique numbers
+    const uniqueMap: Record<string, boolean> = {};
+    allMessages.forEach(message => {
+      uniqueMap[message.phoneNumber] = true;
+    });
+    
+    // Return array of unique numbers
+    return Object.keys(uniqueMap);
   }, [allMessages]);
 
   const handleRefresh = () => {

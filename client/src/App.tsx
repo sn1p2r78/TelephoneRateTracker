@@ -15,6 +15,7 @@ import ApiIntegrations from "@/pages/api-integrations";
 import ProvidersPage from "@/pages/providers";
 import PaymentManagement from "@/pages/payment-management";
 import AutoResponders from "@/pages/auto-responders";
+import CDIRPage from "@/pages/cdir";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -103,6 +104,10 @@ function App() {
           
           <Route path="/auto-responders">
             {!user ? <Redirect to="/auth" /> : <AutoResponders />}
+          </Route>
+          
+          <Route path="/cdir">
+            {!user ? <Redirect to="/auth" /> : <CDIRPage />}
           </Route>
           
           <Route>
