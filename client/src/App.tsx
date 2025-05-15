@@ -16,6 +16,7 @@ import ProvidersPage from "@/pages/providers";
 import PaymentManagement from "@/pages/payment-management";
 import AutoResponders from "@/pages/auto-responders";
 import CDIRPage from "@/pages/cdir";
+import ApiDocsPage from "@/pages/api-docs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -108,6 +109,10 @@ function App() {
           
           <Route path="/cdir">
             {!user ? <Redirect to="/auth" /> : <CDIRPage />}
+          </Route>
+          
+          <Route path="/api-docs">
+            {!user ? <Redirect to="/auth" /> : <ApiDocsPage />}
           </Route>
           
           <Route>

@@ -18,7 +18,8 @@ import {
   Building,
   CreditCard,
   MessageCircleReply,
-  History
+  History,
+  BookOpen
 } from "lucide-react";
 
 export default function SidebarNav() {
@@ -39,6 +40,7 @@ export default function SidebarNav() {
     { href: "/users", label: "User Messages", icon: <Users className="w-5 h-5" /> },
     { href: "/settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
     { href: "/integrations", label: "API Integrations", icon: <Cable className="w-5 h-5" /> },
+    { href: "/api-docs", label: "API Documentation", icon: <BookOpen className="w-5 h-5" /> },
   ];
 
   const filteredNavItems = navItems.filter(item => 
