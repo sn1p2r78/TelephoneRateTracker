@@ -143,7 +143,7 @@ export class DatabaseStorage implements IStorage {
 
   // Call Logs
   async getAllCallLogs(): Promise<CallLog[]> {
-    return await db.select().from(callLogs).orderBy(desc(callLogs.timestamp));
+    return await db.select().from(callLogs).orderBy(desc(callLogs.startTime));
   }
 
   async getCallLog(id: number): Promise<CallLog | undefined> {

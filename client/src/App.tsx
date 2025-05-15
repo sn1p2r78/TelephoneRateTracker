@@ -14,6 +14,7 @@ import Settings from "@/pages/settings";
 import ApiIntegrations from "@/pages/api-integrations";
 import ProvidersPage from "@/pages/providers";
 import PaymentManagement from "@/pages/payment-management";
+import AutoResponders from "@/pages/auto-responders";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";

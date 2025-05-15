@@ -13,9 +13,11 @@ import {
   insertSettingSchema,
   insertProviderSchema,
   insertPayoutSchema,
+  insertSmsAutoResponderSchema,
   users,
   providers,
   payouts,
+  smsAutoResponders,
 } from "@shared/schema";
 import webhookRouter from "./routes/webhook";
 import { initializeIntegrations, getIntegrationsStatus } from "./integrations";
