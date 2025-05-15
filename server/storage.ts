@@ -61,6 +61,15 @@ export interface IStorage {
   createSetting(setting: InsertSetting): Promise<Setting>;
   updateSetting(id: number, setting: InsertSetting): Promise<Setting | undefined>;
   
+  // SMS Auto-responders
+  getAllAutoResponders(): Promise<SmsAutoResponder[]>;
+  getAutoRespondersByNumber(numberId: number): Promise<SmsAutoResponder[]>;
+  getAutoResponder(id: number): Promise<SmsAutoResponder | undefined>;
+  createAutoResponder(autoResponder: InsertSmsAutoResponder): Promise<SmsAutoResponder>;
+  updateAutoResponder(id: number, autoResponder: InsertSmsAutoResponder): Promise<SmsAutoResponder | undefined>;
+  deleteAutoResponder(id: number): Promise<boolean>;
+  getMatchingAutoResponders(numberId: number, message: string): Promise<SmsAutoResponder[]>;
+  
   // Dashboard Analytics
   getTotalRevenue(): Promise<number>;
   getRecentActivity(): Promise<ActivityType[]>;
@@ -310,6 +319,141 @@ export class DatabaseStorage implements IStorage {
       { name: "IVR Services", type: "voice", revenue: 2200, performance: "medium", change: -3, usage: 3200 },
       { name: "Shortcodes", type: "sms", revenue: 1500, performance: "low", change: 5, usage: 8000 }
     ];
+  }
+  
+  // SMS Auto-responders Implementation
+  async getAllAutoResponders(): Promise<SmsAutoResponder[]> {
+    try {
+      const autoResponders = await db
+        .select()
+        .from(smsAutoResponders)
+        .orderBy(desc(smsAutoResponders.priority));
+      return autoResponders;
+    } catch (error) {
+      console.error("Error getting all auto-responders:", error);
+      return [];
+    }
+  }
+  
+  async getAutoRespondersByNumber(numberId: number): Promise<SmsAutoResponder[]> {
+    try {
+      const autoResponders = await db
+        .select()
+        .from(smsAutoResponders)
+        .where(eq(smsAutoResponders.numberId, numberId))
+        .orderBy(desc(smsAutoResponders.priority));
+      return autoResponders;
+    } catch (error) {
+      console.error("Error getting auto-responders by number ID:", error);
+      return [];
+    }
+  }
+  
+  async getAutoResponder(id: number): Promise<SmsAutoResponder | undefined> {
+    try {
+      const [autoResponder] = await db
+        .select()
+        .from(smsAutoResponders)
+        .where(eq(smsAutoResponders.id, id));
+      return autoResponder;
+    } catch (error) {
+      console.error("Error getting auto-responder by ID:", error);
+      return undefined;
+    }
+  }
+  
+  async createAutoResponder(autoResponder: InsertSmsAutoResponder): Promise<SmsAutoResponder> {
+    try {
+      const [newAutoResponder] = await db
+        .insert(smsAutoResponders)
+        .values(autoResponder)
+        .returning();
+      return newAutoResponder;
+    } catch (error) {
+      console.error("Error creating auto-responder:", error);
+      throw error;
+    }
+  }
+  
+  async updateAutoResponder(id: number, autoResponder: InsertSmsAutoResponder): Promise<SmsAutoResponder | undefined> {
+    try {
+      const [updatedAutoResponder] = await db
+        .update(smsAutoResponders)
+        .set({
+          ...autoResponder,
+          updatedAt: new Date()
+        })
+        .where(eq(smsAutoResponders.id, id))
+        .returning();
+      return updatedAutoResponder;
+    } catch (error) {
+      console.error("Error updating auto-responder:", error);
+      return undefined;
+    }
+  }
+  
+  async deleteAutoResponder(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(smsAutoResponders)
+        .where(eq(smsAutoResponders.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting auto-responder:", error);
+      return false;
+    }
+  }
+  
+  async getMatchingAutoResponders(numberId: number, message: string): Promise<SmsAutoResponder[]> {
+    try {
+      // Get all auto-responders for this number
+      const allResponders = await this.getAutoRespondersByNumber(numberId);
+      
+      // Filter only active responders
+      const activeResponders = allResponders.filter(responder => responder.isActive);
+      
+      // Find matching responders based on triggerType
+      const matchingResponders = activeResponders.filter(responder => {
+        if (responder.triggerType === 'any') {
+          return true; // Responds to any message
+        }
+        
+        if (!responder.triggerValue) {
+          return false; // No trigger value set
+        }
+        
+        if (responder.triggerType === 'keyword') {
+          // For keyword matching
+          if (responder.matchCase) {
+            // Case-sensitive match
+            return message.includes(responder.triggerValue);
+          } else {
+            // Case-insensitive match
+            return message.toLowerCase().includes(responder.triggerValue.toLowerCase());
+          }
+        }
+        
+        if (responder.triggerType === 'regex') {
+          // For regex matching
+          try {
+            const flags = responder.matchCase ? '' : 'i'; // Use case-insensitive flag if matchCase is false
+            const regex = new RegExp(responder.triggerValue, flags);
+            return regex.test(message);
+          } catch (error) {
+            console.error("Invalid regex pattern:", responder.triggerValue, error);
+            return false;
+          }
+        }
+        
+        return false;
+      });
+      
+      // Sort by priority (higher number = higher priority)
+      return matchingResponders.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    } catch (error) {
+      console.error("Error getting matching auto-responders:", error);
+      return [];
+    }
   }
 }
 
