@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { ParsedQs } from "qs";
 import crypto from "crypto";
 import { log } from "../vite";
 
@@ -45,8 +46,20 @@ const API_KEYS: ApiKeyConfig[] = [
  */
 export function validateApiKey(requiredPermission?: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Get API key from header or query parameter
-    const apiKey = req.headers["x-api-key"] || req.query.api_key as string;
+    // Get API key from header or query parameter - simplify by converting everything to string
+    let apiKey: string | undefined;
+    
+    // Handle header-based API key
+    const headerApiKey = req.headers["x-api-key"];
+    if (headerApiKey) {
+      apiKey = Array.isArray(headerApiKey) ? headerApiKey[0] : headerApiKey;
+    }
+    
+    // If no header API key, try query parameter
+    if (!apiKey && req.query.api_key) {
+      // Convert whatever we get to a string to handle all cases
+      apiKey = String(req.query.api_key).toString();
+    }
     
     // Skip validation if no permission is required (public endpoint) or in development mode
     if (!requiredPermission || process.env.NODE_ENV === "development" && !apiKey) {
@@ -90,7 +103,10 @@ export function validateApiKey(requiredPermission?: string) {
     // Check rate limit
     if (keyConfig.rateLimit) {
       const now = Date.now();
-      const rateLimiter = rateLimiters[apiKey] || { count: 0, resetTime: now + keyConfig.rateLimit.timeWindowMs };
+      
+      // Ensure we're using a string key for the rateLimiters object
+      const keyString = String(apiKey);
+      const rateLimiter = rateLimiters[keyString] || { count: 0, resetTime: now + keyConfig.rateLimit.timeWindowMs };
       
       // Reset if the time window has passed
       if (now > rateLimiter.resetTime) {
@@ -100,7 +116,7 @@ export function validateApiKey(requiredPermission?: string) {
       
       // Increment request count
       rateLimiter.count++;
-      rateLimiters[apiKey] = rateLimiter;
+      rateLimiters[keyString] = rateLimiter;
       
       // Check if rate limit exceeded
       if (rateLimiter.count > keyConfig.rateLimit.maxRequests) {

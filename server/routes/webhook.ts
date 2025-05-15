@@ -8,27 +8,39 @@ import {
 } from "../integrations/http";
 import { log } from "../vite";
 import { storage } from "../storage";
+import { validateApiKey, validateWebhookSignature, hashIp } from "../lib/security";
 
 // Create a router for webhook endpoints
 const webhookRouter = Router();
 
-// Middleware to log all webhook requests
+// Middleware to log all webhook requests and apply basic security
 webhookRouter.use((req, res, next) => {
-  log(`Webhook request: ${req.method} ${req.url}`, 'webhook');
+  // Log the request with IP hashing for privacy
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  const hashedIp = hashIp(clientIp);
+  log(`Webhook request from ${hashedIp}: ${req.method} ${req.url}`, 'webhook');
   next();
 });
+
+// Add webhook signature validation for providers that support it
+webhookRouter.use(validateWebhookSignature);
+
+// Apply API key validation but don't require it in development mode
+const apiSecurity = process.env.NODE_ENV === 'production' 
+  ? validateApiKey('webhook:access')  // In production, require API key
+  : (req: Request, res: Response, next: NextFunction) => next();  // In dev, skip key validation
 
 // SMS Webhooks
 
 // Handle incoming SMS messages
-webhookRouter.post('/sms/incoming', processIncomingSms);
+webhookRouter.post('/sms/incoming', apiSecurity, processIncomingSms);
 
 // Handle delivery receipts
-webhookRouter.post('/sms/dlr', processDlrStatus);
+webhookRouter.post('/sms/dlr', apiSecurity, processDlrStatus);
 
 // CDIR: Handle incoming SMS messages via GET (for providers that don't support POST)
 // Format: /api/webhooks/sms?number=123456789&datetime=2025-05-15 03:59&text=Hello
-webhookRouter.get('/sms', async (req, res) => {
+webhookRouter.get('/sms', apiSecurity, async (req, res) => {
   try {
     const { number, datetime, text } = req.query;
     
