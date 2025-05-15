@@ -297,4 +297,6 @@ export type ActivityType = (CallLog | SMSLog) & {
   contactNumber?: string;
   messageContent?: string;
   messageSize?: number;
+  duration?: number; // Call duration in seconds
+  callDuration?: number; // Alternative property name for call duration
 };
