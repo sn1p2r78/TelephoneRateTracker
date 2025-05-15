@@ -6,6 +6,7 @@ import {
   processDlrStatus 
 } from "../integrations/http";
 import { log } from "../vite";
+import { storage } from "../storage";
 
 // Create a router for webhook endpoints
 const webhookRouter = Router();
@@ -23,6 +24,56 @@ webhookRouter.post('/sms/incoming', processIncomingSms);
 
 // Handle delivery receipts
 webhookRouter.post('/sms/dlr', processDlrStatus);
+
+// CDIR: Handle incoming SMS messages via GET (for providers that don't support POST)
+// Format: /api/webhooks/sms?number=123456789&datetime=2025-05-15 03:59&text=Hello
+webhookRouter.get('/sms', async (req, res) => {
+  try {
+    const { number, datetime, text } = req.query;
+    
+    if (!number || !text) {
+      return res.status(400).json({ error: "Missing required parameters: number, text" });
+    }
+    
+    log(`CDIR SMS received via GET: number=${number}, text=${text}`, 'webhook');
+    
+    // Create message history record
+    const phoneNumber = number.toString();
+    const messageText = text.toString();
+    
+    // Save to message history
+    const messageHistory = await storage.createMessageHistory({
+      phoneNumber,
+      messageText,
+      timestamp: datetime ? new Date(datetime.toString()) : new Date(),
+      isProcessed: false,
+      responseText: null,
+      responseTimestamp: null
+    });
+    
+    // Find matching auto-responders for this number
+    const autoResponders = await storage.getMatchingAutoResponders(0, messageText); // 0 = all numbers
+    
+    if (autoResponders && autoResponders.length > 0) {
+      // Use the first matching auto-responder
+      const responder = autoResponders[0];
+      
+      // Update the message with a response
+      // In a real scenario, you would send the SMS here as well
+      await storage.updateMessageResponse(
+        messageHistory.id, 
+        responder.responseText
+      );
+      
+      log(`Auto-response sent for message: ${responder.responseText}`, 'webhook');
+    }
+    
+    res.status(200).json({ success: true, message: "Message received" });
+  } catch (error: any) {
+    log(`Error processing SMS webhook via GET: ${error.message}`, 'webhook');
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Voice Webhooks
 
