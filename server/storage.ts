@@ -273,20 +273,32 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentActivity(): Promise<ActivityType[]> {
     // Combine recent call and SMS logs into a single activity feed
-    const recentCalls = await db.select().from(callLogs).orderBy(desc(callLogs.timestamp)).limit(5);
+    const recentCalls = await db.select().from(callLogs).orderBy(desc(callLogs.startTime)).limit(5);
     const recentSMS = await db.select().from(smsLogs).orderBy(desc(smsLogs.timestamp)).limit(5);
     
     const callActivities = recentCalls.map(call => ({
       ...call,
       activityType: 'call' as const,
-      numberValue: call.callerNumber || 'Unknown'
-    }));
+      numberValue: call.numberValue || call.caller || 'Unknown',
+      timestamp: call.startTime,
+      status: call.status,
+      contactName: call.caller,
+      contactNumber: call.recipient,
+      duration: call.duration,
+      callDuration: call.duration
+    } as ActivityType));
     
     const smsActivities = recentSMS.map(sms => ({
       ...sms,
       activityType: 'sms' as const,
-      numberValue: sms.senderNumber || 'Unknown'
-    }));
+      numberValue: sms.numberValue || sms.sender || 'Unknown',
+      timestamp: sms.timestamp,
+      status: sms.status,
+      contactName: sms.sender,
+      contactNumber: sms.recipient,
+      messageContent: sms.message,
+      messageSize: sms.messageLength
+    } as ActivityType));
     
     // Combine and sort by timestamp, handling null timestamps
     return [...callActivities, ...smsActivities]

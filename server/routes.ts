@@ -297,6 +297,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SMS Auto-responders Routes
+  app.get("/api/auto-responders", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const autoResponders = await storage.getAllAutoResponders();
+      res.json(autoResponders);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/auto-responders/number/:numberId", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const numberId = parseInt(req.params.numberId);
+      if (isNaN(numberId)) {
+        return res.status(400).json({ message: "Invalid number ID" });
+      }
+      
+      const autoResponders = await storage.getAutoRespondersByNumber(numberId);
+      res.json(autoResponders);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.get("/api/auto-responders/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid auto-responder ID" });
+      }
+      
+      const autoResponder = await storage.getAutoResponder(id);
+      if (!autoResponder) {
+        return res.status(404).json({ message: "Auto-responder not found" });
+      }
+      
+      res.json(autoResponder);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.post("/api/auto-responders", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const parsed = insertSmsAutoResponderSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid auto-responder data", errors: parsed.error.format() });
+      }
+      
+      const autoResponder = await storage.createAutoResponder(parsed.data);
+      res.status(201).json(autoResponder);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.put("/api/auto-responders/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid auto-responder ID" });
+      }
+      
+      const parsed = insertSmsAutoResponderSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid auto-responder data", errors: parsed.error.format() });
+      }
+      
+      const updated = await storage.updateAutoResponder(id, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ message: "Auto-responder not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  app.delete("/api/auto-responders/:id", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid auto-responder ID" });
+      }
+      
+      const success = await storage.deleteAutoResponder(id);
+      if (!success) {
+        return res.status(404).json({ message: "Auto-responder not found or could not be deleted" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
+  // Test endpoint for SMS responder matching
+  app.post("/api/auto-responders/test", async (req: Request, res: Response) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { numberId, message } = req.body;
+      
+      if (!numberId || typeof numberId !== 'number') {
+        return res.status(400).json({ message: "Invalid number ID" });
+      }
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Invalid message" });
+      }
+      
+      const matchingResponders = await storage.getMatchingAutoResponders(numberId, message);
+      res.json({
+        message,
+        numberId,
+        matchCount: matchingResponders.length,
+        matches: matchingResponders,
+        response: matchingResponders.length > 0 ? matchingResponders[0].responseMessage : null
+      });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+  
   // Provider routes
   app.get("/api/providers", async (req: Request, res: Response) => {
     try {
