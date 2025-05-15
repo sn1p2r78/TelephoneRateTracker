@@ -393,197 +393,148 @@ export default function AutoRespondersPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="numberId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>IPRN Number</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a number" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {numbers?.map((number) => (
-                                <SelectItem key={number.id} value={number.id.toString()}>
-                                  {number.name} ({number.number})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Welcome Message" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">IPRN Number</label>
+                    <Select
+                      onValueChange={(value) => form.setValue("numberId", parseInt(value))}
+                      value={form.watch("numberId")?.toString()}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a number" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {numbers?.map((number) => (
+                          <SelectItem key={number.id} value={number.id.toString()}>
+                            {number.name} ({number.number})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.numberId && (
+                      <p className="text-sm font-medium text-destructive">Number is required</p>
+                    )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="triggerType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Trigger Type</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select trigger type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="any">Any Message</SelectItem>
-                              <SelectItem value="keyword">Keyword</SelectItem>
-                              <SelectItem value="regex">Regex Pattern</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Name</label>
+                    <Input 
+                      placeholder="Welcome Message" 
+                      {...form.register("name")}
                     />
-                    
-                    {form.watch("triggerType") !== "any" && (
-                      <FormField
-                        control={form.control}
-                        name="triggerValue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {form.watch("triggerType") === "keyword" ? "Keyword" : "Regex Pattern"}
-                            </FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder={
-                                  form.watch("triggerType") === "keyword" 
-                                    ? "help, info, start" 
-                                    : "\\b(help|info)\\b"
-                                } 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                    {form.formState.errors.name && (
+                      <p className="text-sm font-medium text-destructive">Name is required</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Trigger Type</label>
+                    <Select
+                      onValueChange={(value) => form.setValue("triggerType", value as "any" | "keyword" | "regex")}
+                      value={form.watch("triggerType")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trigger type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any Message</SelectItem>
+                        <SelectItem value="keyword">Keyword</SelectItem>
+                        <SelectItem value="regex">Regex Pattern</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.triggerType && (
+                      <p className="text-sm font-medium text-destructive">Trigger type is required</p>
+                    )}
+                  </div>
+                  
+                  {form.watch("triggerType") !== "any" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {form.watch("triggerType") === "keyword" ? "Keyword" : "Regex Pattern"}
+                      </label>
+                      <Input 
+                        placeholder={
+                          form.watch("triggerType") === "keyword" 
+                            ? "help, info, start" 
+                            : "\\b(help|info)\\b"
+                        } 
+                        {...form.register("triggerValue")}
                       />
-                    )}
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="responseMessage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Response Message</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Thank you for your message. This is an automated response."
-                            className="min-h-32"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                      {form.formState.errors.triggerValue && (
+                        <p className="text-sm font-medium text-destructive">Trigger value is required</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Response Message</label>
+                  <Textarea 
+                    placeholder="Thank you for your message. This is an automated response."
+                    className="min-h-32"
+                    {...form.register("responseMessage")}
                   />
+                  {form.formState.errors.responseMessage && (
+                    <p className="text-sm font-medium text-destructive">Response message is required</p>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Priority</label>
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      {...form.register("priority", {
+                        setValueAs: (v) => parseInt(v) || 0
+                      })}
+                    />
+                  </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="priority"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Priority</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0" 
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  <div className="flex flex-row items-end space-x-2 space-y-0 rounded-md border p-3">
+                    <Switch
+                      checked={form.watch("isActive")}
+                      onCheckedChange={(checked) => form.setValue("isActive", checked)}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="isActive"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-end space-x-2 space-y-0 rounded-md border p-3">
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormLabel className="ml-2">Active</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {form.watch("triggerType") !== "any" && (
-                      <FormField
-                        control={form.control}
-                        name="matchCase"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-end space-x-2 space-y-0 rounded-md border p-3">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="ml-2">Match Case</FormLabel>
-                          </FormItem>
-                        )}
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ml-2">
+                      Active
+                    </label>
+                  </div>
+                  
+                  {form.watch("triggerType") !== "any" && (
+                    <div className="flex flex-row items-end space-x-2 space-y-0 rounded-md border p-3">
+                      <Switch
+                        checked={form.watch("matchCase")}
+                        onCheckedChange={(checked) => form.setValue("matchCase", checked)}
                       />
-                    )}
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    {editingId !== null && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                      {(createMutation.isPending || updateMutation.isPending) && (
-                        <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      {editingId !== null ? "Update" : "Create"} Auto-Responder
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ml-2">
+                        Match Case
+                      </label>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  {editingId !== null && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                    >
+                      Cancel
                     </Button>
-                  </div>
-                </form>
-              </Form>
+                  )}
+                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {editingId !== null ? "Update" : "Create"} Auto-Responder
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
@@ -600,7 +551,7 @@ export default function AutoRespondersPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <FormLabel>IPRN Number</FormLabel>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">IPRN Number</label>
                     <Select
                       onValueChange={(value) => setTestNumberId(parseInt(value))}
                       value={testNumberId?.toString()}
@@ -619,7 +570,7 @@ export default function AutoRespondersPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <FormLabel>Test Message</FormLabel>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Test Message</label>
                     <div className="flex space-x-2">
                       <Input 
                         placeholder="Enter a message to test" 
