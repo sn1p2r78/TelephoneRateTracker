@@ -42,9 +42,29 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    
+    // Log the error with detailed information
+    log(`Error ${status}: ${message}`, 'error');
+    
+    if (app.get("env") === "development") {
+      // In development, include the stack trace for debugging
+      res.status(status).json({ 
+        error: {
+          message: message,
+          stack: err.stack
+        }
+      });
+    } else {
+      // In production, only send the error message
+      res.status(status).json({ 
+        error: {
+          message: message
+        }
+      });
+    }
+    
+    // Don't rethrow the error as it would crash the server
+    // The error has been logged and sent to the client
   });
 
   // importantly only setup vite in development and after
