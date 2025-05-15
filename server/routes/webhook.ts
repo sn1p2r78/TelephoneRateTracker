@@ -62,10 +62,10 @@ webhookRouter.get('/sms', async (req, res) => {
       // In a real scenario, you would send the SMS here as well
       await storage.updateMessageResponse(
         messageHistory.id, 
-        responder.responseText
+        responder.responseMessage
       );
       
-      log(`Auto-response sent for message: ${responder.responseText}`, 'webhook');
+      log(`Auto-response sent for message: ${responder.responseMessage}`, 'webhook');
     }
     
     res.status(200).json({ success: true, message: "Message received" });

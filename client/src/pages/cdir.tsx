@@ -38,6 +38,11 @@ export default function CDIRPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
+  
+  // Date filters
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedMonth, setSelectedMonth] = useState<string>(`${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const { data: allMessages, isLoading, refetch } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
@@ -66,6 +71,40 @@ export default function CDIRPage() {
       message.messageText.includes(searchQuery) ||
       (message.responseText && message.responseText.includes(searchQuery))
   );
+  
+  // Time-based filter functions
+  const isMessageFromDate = (messageDate: string, selectedDate: Date): boolean => {
+    const date = new Date(messageDate);
+    return (
+      date.getDate() === selectedDate.getDate() &&
+      date.getMonth() === selectedDate.getMonth() &&
+      date.getFullYear() === selectedDate.getFullYear()
+    );
+  };
+
+  const isMessageFromMonth = (messageDate: string, yearMonth: string): boolean => {
+    const date = new Date(messageDate);
+    const [year, month] = yearMonth.split('-').map(n => parseInt(n));
+    return date.getMonth() + 1 === month && date.getFullYear() === year;
+  };
+
+  const isMessageFromYear = (messageDate: string, year: number): boolean => {
+    const date = new Date(messageDate);
+    return date.getFullYear() === year;
+  };
+  
+  // Filtered message sets
+  const dailyMessages = React.useMemo(() => {
+    return allMessages?.filter(message => isMessageFromDate(message.timestamp, selectedDate)) || [];
+  }, [allMessages, selectedDate]);
+
+  const monthlyMessages = React.useMemo(() => {
+    return allMessages?.filter(message => isMessageFromMonth(message.timestamp, selectedMonth)) || [];
+  }, [allMessages, selectedMonth]);
+
+  const yearlyMessages = React.useMemo(() => {
+    return allMessages?.filter(message => isMessageFromYear(message.timestamp, selectedYear)) || [];
+  }, [allMessages, selectedYear]);
 
   // Get unique phone numbers from all messages
   const uniqueNumbers = React.useMemo(() => {
@@ -134,6 +173,9 @@ export default function CDIRPage() {
             <TabsList>
               <TabsTrigger value="all">All Messages</TabsTrigger>
               <TabsTrigger value="by-number">By Number</TabsTrigger>
+              <TabsTrigger value="daily">Daily</TabsTrigger>
+              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+              <TabsTrigger value="yearly">Yearly</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all">
@@ -305,6 +347,289 @@ export default function CDIRPage() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="daily">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daily Messages</CardTitle>
+                  <CardDescription>
+                    Messages received on {format(selectedDate, 'MMMM d, yyyy')}
+                  </CardDescription>
+                  <div className="mt-2">
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedDate(new Date(selectedDate.getTime() - 86400000))}
+                      >
+                        Previous Day
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedDate(new Date())}
+                      >
+                        Today
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedDate(new Date(selectedDate.getTime() + 86400000))}
+                      >
+                        Next Day
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex justify-center p-8">
+                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : !dailyMessages.length ? (
+                    <div className="text-center p-8 text-muted-foreground">
+                      No messages found for this day
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Time</TableHead>
+                            <TableHead className="w-[150px]">Number</TableHead>
+                            <TableHead>Message</TableHead>
+                            <TableHead>Response</TableHead>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dailyMessages.map((message) => (
+                            <TableRow key={message.id}>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(message.timestamp), "HH:mm:ss")}
+                              </TableCell>
+                              <TableCell>{message.phoneNumber}</TableCell>
+                              <TableCell>{message.messageText}</TableCell>
+                              <TableCell>
+                                {message.responseText ? (
+                                  <div>
+                                    <p>{message.responseText}</p>
+                                    {message.responseTimestamp && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {format(new Date(message.responseTimestamp), "HH:mm:ss")}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">No response</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={message.isProcessed ? "default" : "outline"}
+                                  className={message.isProcessed ? "bg-green-500 hover:bg-green-600" : ""}
+                                >
+                                  {message.isProcessed ? "Processed" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="monthly">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Messages</CardTitle>
+                  <CardDescription>
+                    Messages received in {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}
+                  </CardDescription>
+                  <div className="mt-2">
+                    <div className="flex items-center space-x-2">
+                      <select 
+                        className="px-2 py-1 border rounded-md"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                      >
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const month = i + 1;
+                          const monthStr = month.toString().padStart(2, '0');
+                          return (
+                            <option key={monthStr} value={`${selectedYear}-${monthStr}`}>
+                              {format(new Date(`${selectedYear}-${monthStr}-01`), 'MMMM')}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <select
+                        className="px-2 py-1 border rounded-md"
+                        value={selectedYear}
+                        onChange={(e) => {
+                          const newYear = parseInt(e.target.value);
+                          setSelectedYear(newYear);
+                          setSelectedMonth(`${newYear}-${selectedMonth.split('-')[1]}`);
+                        }}
+                      >
+                        {Array.from({ length: 10 }, (_, i) => {
+                          const year = new Date().getFullYear() - 5 + i;
+                          return (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex justify-center p-8">
+                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : !monthlyMessages.length ? (
+                    <div className="text-center p-8 text-muted-foreground">
+                      No messages found for this month
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Date</TableHead>
+                            <TableHead className="w-[150px]">Number</TableHead>
+                            <TableHead>Message</TableHead>
+                            <TableHead>Response</TableHead>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {monthlyMessages.map((message) => (
+                            <TableRow key={message.id}>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(message.timestamp), "MMM dd, HH:mm")}
+                              </TableCell>
+                              <TableCell>{message.phoneNumber}</TableCell>
+                              <TableCell>{message.messageText}</TableCell>
+                              <TableCell>
+                                {message.responseText ? (
+                                  <div>
+                                    <p>{message.responseText}</p>
+                                    {message.responseTimestamp && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {format(new Date(message.responseTimestamp), "MMM dd, HH:mm")}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">No response</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={message.isProcessed ? "default" : "outline"}
+                                  className={message.isProcessed ? "bg-green-500 hover:bg-green-600" : ""}
+                                >
+                                  {message.isProcessed ? "Processed" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="yearly">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Yearly Messages</CardTitle>
+                  <CardDescription>
+                    Messages received in {selectedYear}
+                  </CardDescription>
+                  <div className="mt-2">
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedYear(selectedYear - 1)}
+                      >
+                        Previous Year
+                      </Button>
+                      <span className="font-semibold px-4">{selectedYear}</span>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedYear(selectedYear + 1)}
+                      >
+                        Next Year
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex justify-center p-8">
+                      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : !yearlyMessages.length ? (
+                    <div className="text-center p-8 text-muted-foreground">
+                      No messages found for this year
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[100px]">Date</TableHead>
+                            <TableHead className="w-[150px]">Number</TableHead>
+                            <TableHead>Message</TableHead>
+                            <TableHead>Response</TableHead>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {yearlyMessages.map((message) => (
+                            <TableRow key={message.id}>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(message.timestamp), "MMM dd, yyyy")}
+                              </TableCell>
+                              <TableCell>{message.phoneNumber}</TableCell>
+                              <TableCell>{message.messageText}</TableCell>
+                              <TableCell>
+                                {message.responseText ? (
+                                  <div>
+                                    <p>{message.responseText}</p>
+                                    {message.responseTimestamp && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {format(new Date(message.responseTimestamp), "MMM dd, yyyy")}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">No response</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={message.isProcessed ? "default" : "outline"}
+                                  className={message.isProcessed ? "bg-green-500 hover:bg-green-600" : ""}
+                                >
+                                  {message.isProcessed ? "Processed" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
