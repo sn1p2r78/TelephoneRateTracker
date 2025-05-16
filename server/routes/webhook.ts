@@ -42,14 +42,58 @@ webhookRouter.post('/sms/incoming', processIncomingSms);
 // Handle delivery receipts
 webhookRouter.post('/sms/dlr', processDlrStatus);
 
-// CDIR: Handle incoming SMS messages via GET (for providers that don't support POST)
-// Format: /api/webhooks/sms?number=123456789&datetime=2025-05-15 03:59&text=Hello
+// CDIR: Handle incoming SMS messages via GET
+// Multiple formats supported:
+// 1. Send new message: /api/webhooks/sms?number=123456789&datetime=2025-05-15 03:59&text=Hello
+// 2. Query messages: /api/webhooks/sms?number=123456789&start_date=2025-05-01&end_date=2025-05-15
 webhookRouter.get('/sms', async (req, res) => {
   try {
-    const { number, datetime, text } = req.query;
+    const { number, datetime, text, start_date, end_date, limit } = req.query;
     
+    // CASE 1: Message retrieval mode (has number + date range)
+    if (number && (start_date || end_date)) {
+      log(`SMS history query: number=${number}, date range=${start_date || 'any'} to ${end_date || 'any'}`, 'webhook');
+      
+      const phoneNumber = number.toString();
+      const maxLimit = parseInt(limit?.toString() || '100');
+      
+      // Parse date range or use defaults
+      const startDateTime = start_date ? new Date(start_date.toString()) : new Date(0); // 1970 if not specified
+      const endDateTime = end_date ? new Date(end_date.toString()) : new Date(); // Current time if not specified
+      
+      // Get message history for the specified number and date range
+      const messages = await storage.getMessageHistoryByNumber(phoneNumber);
+      
+      // Filter by date range and apply limit
+      const filteredMessages = messages
+        .filter(msg => {
+          // Handle potential null timestamps gracefully
+          if (!msg.timestamp) return false;
+          const msgDate = new Date(msg.timestamp);
+          return msgDate >= startDateTime && msgDate <= endDateTime;
+        })
+        .slice(0, maxLimit);
+      
+      return res.status(200).json({
+        success: true,
+        count: filteredMessages.length,
+        date_range: {
+          from: startDateTime.toISOString(),
+          to: endDateTime.toISOString()
+        },
+        messages: filteredMessages
+      });
+    }
+    
+    // CASE 2: Send new message mode (has number + text)
     if (!number || !text) {
-      return res.status(400).json({ error: "Missing required parameters: number, text" });
+      return res.status(400).json({ 
+        error: "Missing required parameters", 
+        usage: {
+          "send_message": "/api/webhooks/sms?number=123456789&text=Hello&datetime=optional_timestamp",
+          "query_messages": "/api/webhooks/sms?number=123456789&start_date=2025-05-01&end_date=2025-05-15&limit=100"
+        }
+      });
     }
     
     log(`CDIR SMS received via GET: number=${number}, text=${text}`, 'webhook');
@@ -85,7 +129,12 @@ webhookRouter.get('/sms', async (req, res) => {
       log(`Auto-response sent for message: ${responder.responseMessage}`, 'webhook');
     }
     
-    res.status(200).json({ success: true, message: "Message received" });
+    res.status(200).json({ 
+      success: true, 
+      message: "Message received",
+      message_id: messageHistory.id,
+      auto_response: autoResponders && autoResponders.length > 0
+    });
   } catch (error: any) {
     log(`Error processing SMS webhook via GET: ${error.message}`, 'webhook');
     res.status(500).json({ error: error.message });
@@ -112,8 +161,58 @@ webhookRouter.post('/voice/incoming', processIncomingCall);
 webhookRouter.post('/voice/status', processCallStatus);
 
 // Handle voice calls via GET for easy integration
-// Format: /api/webhooks/voice?caller_id=123456789&number=987654321&duration=60&timestamp=2025-05-15 12:45:00
-webhookRouter.get('/voice', processVoiceCallGet);
+// Multiple formats supported:
+// 1. Send call data: /api/webhooks/voice?caller_id=123456789&number=987654321&duration=60&timestamp=2025-05-15 12:45:00
+// 2. Query calls: /api/webhooks/voice?number=987654321&start_date=2025-05-01&end_date=2025-05-15&limit=50
+webhookRouter.get('/voice', async (req, res) => {
+  try {
+    const { caller_id, number, duration, timestamp, start_date, end_date, limit } = req.query;
+    
+    // CASE 1: Call retrieval mode (has number + date range)
+    if (number && (start_date || end_date) && !caller_id) {
+      log(`Voice call history query: number=${number}, date range=${start_date || 'any'} to ${end_date || 'any'}`, 'webhook');
+      
+      const phoneNumber = number.toString();
+      const maxLimit = parseInt(limit?.toString() || '50');
+      
+      // Parse date range or use defaults
+      const startDateTime = start_date ? new Date(start_date.toString()) : new Date(0); // 1970 if not specified
+      const endDateTime = end_date ? new Date(end_date.toString()) : new Date(); // Current time if not specified
+      
+      // Get call logs for the specified number
+      const callLogs = await storage.getAllCallLogs();
+      
+      // Filter by number, date range and apply limit
+      const filteredCalls = callLogs
+        .filter(call => {
+          // Handle potential null startTime gracefully
+          if (!call.startTime) return false;
+          
+          const callStartTime = new Date(call.startTime);
+          const numberMatches = call.numberValue === phoneNumber || call.caller === phoneNumber || call.recipient === phoneNumber;
+          return numberMatches && (callStartTime >= startDateTime && callStartTime <= endDateTime);
+        })
+        .slice(0, maxLimit);
+      
+      return res.status(200).json({
+        success: true,
+        count: filteredCalls.length,
+        date_range: {
+          from: startDateTime.toISOString(),
+          to: endDateTime.toISOString()
+        },
+        calls: filteredCalls
+      });
+    }
+    
+    // CASE 2: Send new call data (has caller_id + number)
+    // Use the existing handler for processing voice calls
+    return processVoiceCallGet(req, res);
+  } catch (error: any) {
+    log(`Error processing voice webhook via GET: ${error.message}`, 'webhook');
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Generic webhook for any provider
 // This endpoint allows any provider to use different parameters, and we'll parse them based on the 'provider' field
