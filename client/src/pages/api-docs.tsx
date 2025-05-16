@@ -857,37 +857,170 @@ export default function ApiDocsPage() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">Request Body</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Parameter</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Required</TableHead>
-                            <TableHead>Description</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell className="font-medium">provider</TableCell>
-                            <TableCell>string</TableCell>
-                            <TableCell>Yes</TableCell>
-                            <TableCell>The provider name (e.g., twilio, infobip)</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">event</TableCell>
-                            <TableCell>string</TableCell>
-                            <TableCell>Yes</TableCell>
-                            <TableCell>Event type (incoming_call, incoming_sms, call_status, dlr_status)</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">[Additional fields]</TableCell>
-                            <TableCell>various</TableCell>
-                            <TableCell>Yes</TableCell>
-                            <TableCell>Depends on the event type</TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+                      <h3 className="text-lg font-semibold mb-2">Functionality</h3>
+                      <p className="text-muted-foreground mb-4">
+                        This endpoint supports two modes of operation:
+                      </p>
+                      
+                      <Tabs defaultValue="webhook" className="mt-4">
+                        <TabsList>
+                          <TabsTrigger value="webhook">Webhook Mode</TabsTrigger>
+                          <TabsTrigger value="query">Query Mode</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="webhook">
+                          <h4 className="font-semibold mt-4 mb-2">Webhook Mode Parameters</h4>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Parameter</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Required</TableHead>
+                                <TableHead>Description</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell className="font-medium">provider</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>The provider name (e.g., twilio, infobip)</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">event</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>Event type (incoming_call, incoming_sms, call_status, dlr_status)</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">[Additional fields]</TableCell>
+                                <TableCell>various</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>Depends on the event type</TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        
+                          <h4 className="font-semibold mt-4 mb-2">Response Example</h4>
+                          <pre className="bg-muted p-3 rounded-md text-sm">
+                            {JSON.stringify({
+                              success: true,
+                              message: "Event processed successfully",
+                              id: 789
+                            }, null, 2)}
+                          </pre>
+                        </TabsContent>
+                      
+                        <TabsContent value="query">
+                          <h4 className="font-semibold mt-4 mb-2">Query Mode Parameters</h4>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Parameter</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Required</TableHead>
+                                <TableHead>Description</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell className="font-medium">provider</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>Data type to query ('sms', 'voice', or 'all')</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">query</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>Must be set to 'historical' to query data</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">number</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>Yes</TableCell>
+                                <TableCell>The phone number to query data for</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">start_date</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>No</TableCell>
+                                <TableCell>Start date for filtering (ISO format or readable date)</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">end_date</TableCell>
+                                <TableCell>string</TableCell>
+                                <TableCell>No</TableCell>
+                                <TableCell>End date for filtering (ISO format or readable date)</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell className="font-medium">limit</TableCell>
+                                <TableCell>number</TableCell>
+                                <TableCell>No</TableCell>
+                                <TableCell>Maximum number of records to return (default: 100)</TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        
+                          <h4 className="font-semibold mt-4 mb-2">Response Example (All Data)</h4>
+                          <pre className="bg-muted p-3 rounded-md text-sm max-h-80 overflow-auto">
+                            {JSON.stringify({
+                              success: true,
+                              provider: "all",
+                              date_range: {
+                                from: "2025-05-01T00:00:00.000Z",
+                                to: "2025-05-15T00:00:00.000Z"
+                              },
+                              sms_count: 2,
+                              sms_messages: [
+                                {
+                                  id: 1,
+                                  phoneNumber: "123456789",
+                                  messageText: "Hello world",
+                                  timestamp: "2025-05-10T14:30:00.000Z",
+                                  isProcessed: true,
+                                  responseText: "Auto-response: Thank you for your message",
+                                  responseTimestamp: "2025-05-10T14:30:05.000Z"
+                                },
+                                {
+                                  id: 2,
+                                  phoneNumber: "123456789",
+                                  messageText: "Second message",
+                                  timestamp: "2025-05-12T09:15:00.000Z",
+                                  isProcessed: true,
+                                  responseText: "Auto-response: We received your message",
+                                  responseTimestamp: "2025-05-12T09:15:03.000Z"
+                                }
+                              ],
+                              voice_count: 2,
+                              voice_calls: [
+                                {
+                                  id: 1,
+                                  caller: "123456789",
+                                  recipient: "987654321",
+                                  numberValue: "987654321",
+                                  startTime: "2025-05-10T14:35:00.000Z",
+                                  endTime: "2025-05-10T14:38:15.000Z",
+                                  duration: 195,
+                                  status: "COMPLETED",
+                                  revenue: 3.25
+                                },
+                                {
+                                  id: 2,
+                                  caller: "123456789",
+                                  recipient: "987654321",
+                                  numberValue: "987654321",
+                                  startTime: "2025-05-12T09:20:00.000Z",
+                                  endTime: "2025-05-12T09:22:42.000Z", 
+                                  duration: 162,
+                                  status: "COMPLETED",
+                                  revenue: 2.70
+                                }
+                              ]
+                            }, null, 2)}
+                          </pre>
+                        </TabsContent>
+                      </Tabs>
                     </div>
 
                     <div>

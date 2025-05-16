@@ -214,13 +214,195 @@ webhookRouter.get('/voice', async (req, res) => {
   }
 });
 
-// Generic webhook for any provider
+// Generic webhook with support for both POST and GET requests
 // This endpoint allows any provider to use different parameters, and we'll parse them based on the 'provider' field
+// It also supports querying historical data for specific providers
+
+// GET version for easier integration
+webhookRouter.get('/generic', async (req, res) => {
+  try {
+    const { provider, event, query, number, start_date, end_date, limit } = req.query;
+    
+    // Query mode
+    if (provider && query === 'historical' && number) {
+      log(`Generic historical query via GET: provider=${provider}, number=${number}`, 'webhook');
+      
+      const phoneNumber = String(number);
+      const maxLimit = parseInt(String(limit || '100'));
+      
+      // Parse date range or use defaults
+      const startDateTime = start_date ? new Date(String(start_date)) : new Date(0);
+      const endDateTime = end_date ? new Date(String(end_date)) : new Date();
+      
+      let result: any = { success: true, provider };
+      
+      // Get data based on the provider and query type
+      if (provider === 'sms' || provider === 'all') {
+        const messages = await storage.getMessageHistoryByNumber(phoneNumber);
+        const filteredMessages = messages
+          .filter(msg => {
+            if (!msg.timestamp) return false;
+            const msgDate = new Date(msg.timestamp);
+            return msgDate >= startDateTime && msgDate <= endDateTime;
+          })
+          .slice(0, maxLimit);
+          
+        result.sms_count = filteredMessages.length;
+        result.sms_messages = filteredMessages;
+      }
+      
+      if (provider === 'voice' || provider === 'all') {
+        const callLogs = await storage.getAllCallLogs();
+        const filteredCalls = callLogs
+          .filter(call => {
+            if (!call.startTime) return false;
+            const callStartTime = new Date(call.startTime);
+            const numberMatches = call.numberValue === phoneNumber || 
+                                 call.caller === phoneNumber || 
+                                 call.recipient === phoneNumber;
+            return numberMatches && (callStartTime >= startDateTime && callStartTime <= endDateTime);
+          })
+          .slice(0, maxLimit);
+          
+        result.voice_count = filteredCalls.length;
+        result.voice_calls = filteredCalls;
+      }
+      
+      result.date_range = {
+        from: startDateTime.toISOString(),
+        to: endDateTime.toISOString()
+      };
+      
+      return res.status(200).json(result);
+    }
+    
+    // Regular webhook mode
+    if (provider && event) {
+      // Create a body object from query parameters to pass to the handlers
+      const body: any = { ...req.query };
+      req.body = body;
+      
+      switch (String(event)) {
+        case 'incoming_sms':
+          return await processIncomingSms(req, res);
+        
+        case 'dlr_status':
+          return await processDlrStatus(req, res);
+        
+        case 'incoming_call':
+          return await processIncomingCall(req, res);
+        
+        case 'call_status':
+          return await processCallStatus(req, res);
+        
+        default:
+          return res.status(400).json({ error: `Unknown event type: ${event}` });
+      }
+    }
+    
+    // No valid parameters provided
+    return res.status(400).json({ 
+      error: "Missing required parameters", 
+      usage: {
+        "webhook_mode": "/api/webhooks/generic?provider=twilio&event=incoming_sms&from=123456789&to=987654321&text=Hello",
+        "query_mode": "/api/webhooks/generic?provider=all&query=historical&number=123456789&start_date=2025-05-01&end_date=2025-05-15&limit=100"
+      }
+    });
+    
+  } catch (error: any) {
+    log(`Error processing generic webhook via GET: ${error.message}`, 'webhook');
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST version for traditional webhook integrations
 webhookRouter.post('/generic', async (req, res) => {
-  const { provider, event } = req.body;
+  const { provider, event, query, number, start_date, end_date, limit } = req.body;
   
+  // CASE 1: Query historical data mode
+  if (provider && query === 'historical' && number) {
+    try {
+      log(`Generic historical query for provider: ${provider}, number: ${number}`, 'webhook');
+      
+      const phoneNumber = number.toString();
+      const maxLimit = parseInt(limit?.toString() || '100');
+      
+      // Parse date range or use defaults
+      const startDateTime = start_date ? new Date(start_date.toString()) : new Date(0);
+      const endDateTime = end_date ? new Date(end_date.toString()) : new Date();
+      
+      let result: any = { success: true, provider };
+      
+      // Get data based on the provider and query type
+      if (provider === 'sms' || provider === 'all') {
+        // Get SMS history
+        const messages = await storage.getMessageHistoryByNumber(phoneNumber);
+        
+        // Filter by date range
+        const filteredMessages = messages
+          .filter(msg => {
+            if (!msg.timestamp) return false;
+            const msgDate = new Date(msg.timestamp);
+            return msgDate >= startDateTime && msgDate <= endDateTime;
+          })
+          .slice(0, maxLimit);
+          
+        result.sms_count = filteredMessages.length;
+        result.sms_messages = filteredMessages;
+      }
+      
+      if (provider === 'voice' || provider === 'all') {
+        // Get call logs
+        const callLogs = await storage.getAllCallLogs();
+        
+        // Filter by number and date range
+        const filteredCalls = callLogs
+          .filter(call => {
+            if (!call.startTime) return false;
+            const callStartTime = new Date(call.startTime);
+            const numberMatches = call.numberValue === phoneNumber || 
+                                 call.caller === phoneNumber || 
+                                 call.recipient === phoneNumber;
+            return numberMatches && (callStartTime >= startDateTime && callStartTime <= endDateTime);
+          })
+          .slice(0, maxLimit);
+          
+        result.voice_count = filteredCalls.length;
+        result.voice_calls = filteredCalls;
+      }
+      
+      // Add date range info to result
+      result.date_range = {
+        from: startDateTime.toISOString(),
+        to: endDateTime.toISOString()
+      };
+      
+      return res.status(200).json(result);
+    } catch (error: any) {
+      log(`Error processing historical query: ${error.message}`, 'webhook');
+      return res.status(500).json({ error: error.message });
+    }
+  }
+  
+  // CASE 2: Traditional webhook processing mode
   if (!provider || !event) {
-    return res.status(400).json({ error: "Missing required parameters: provider, event" });
+    return res.status(400).json({ 
+      error: "Missing required parameters", 
+      usage: {
+        "webhook_mode": { 
+          provider: "Required. Provider name (e.g., twilio, infobip)",
+          event: "Required. Event type (incoming_sms, incoming_call, etc.)"
+        },
+        "query_mode": {
+          provider: "Required. Data type to query ('sms', 'voice', or 'all')",
+          query: "Required. Set to 'historical' to query data",
+          number: "Required. The phone number to query data for",
+          start_date: "Optional. Start date for filtering data",
+          end_date: "Optional. End date for filtering data",
+          limit: "Optional. Maximum number of records to return" 
+        }
+      }
+    });
   }
   
   log(`Generic webhook hit for provider: ${provider}, event: ${event}`, 'webhook');
