@@ -1,199 +1,268 @@
-import { Request, Response, NextFunction } from "express";
-import { ParsedQs } from "qs";
-import crypto from "crypto";
-import { log } from "../vite";
+import crypto from 'crypto';
+import { Request, Response, NextFunction } from 'express';
+import { storage } from '../storage';
+import { log } from '../vite';
 
-// Interface for API key configuration
-interface ApiKeyConfig {
-  name: string;
-  value: string;
-  permissions: string[];
-  rateLimit?: {
-    maxRequests: number;
-    timeWindowMs: number;
-  };
-}
-
-// Simple rate limiting for API keys
-const rateLimiters: Record<string, { count: number; resetTime: number }> = {};
-
-// In a real application, these would be stored in a database
-// For this example, we'll use a hardcoded config, but you'd normally load this from env vars or DB
-const API_KEYS: ApiKeyConfig[] = [
-  {
-    name: "webhook_key",
-    value: process.env.WEBHOOK_API_KEY || "dev_webhook_key_iprn_system_2025", // In production, use a real API key
-    permissions: ["webhook:*"],
-    rateLimit: {
-      maxRequests: 100,
-      timeWindowMs: 60000 // 1 minute
-    }
-  },
-  {
-    name: "admin_key",
-    value: process.env.ADMIN_API_KEY || "dev_admin_key_iprn_system_2025", // In production, use a real API key
-    permissions: ["webhook:*", "admin:*"],
-    rateLimit: {
-      maxRequests: 300,
-      timeWindowMs: 60000 // 1 minute
-    }
-  }
-];
+// Environment checks
+const isProduction = process.env.NODE_ENV === 'production';
+const API_KEY_HEADER = 'X-API-Key';
+const API_SECRET = process.env.API_SECRET || 'super-secure-development-secret';
 
 /**
- * Creates a middleware to validate API keys
- * @param requiredPermission - The permission required to access the resource
+ * Validates the API key present in the request
+ * Keys can be provided in multiple ways:
+ * 1. As a header: X-API-Key
+ * 2. As a query parameter: api_key
+ * 3. As a body parameter: apiKey
  */
-export function validateApiKey(requiredPermission?: string) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    // Get API key from header or query parameter - simplify by converting everything to string
-    let apiKey: string | undefined;
-    
-    // Handle header-based API key
-    const headerApiKey = req.headers["x-api-key"];
-    if (headerApiKey) {
-      apiKey = Array.isArray(headerApiKey) ? headerApiKey[0] : headerApiKey;
-    }
-    
-    // If no header API key, try query parameter
-    if (!apiKey && req.query.api_key) {
-      // Convert whatever we get to a string to handle all cases
-      apiKey = String(req.query.api_key).toString();
-    }
-    
-    // Skip validation if no permission is required (public endpoint) or in development mode
-    if (!requiredPermission || process.env.NODE_ENV === "development" && !apiKey) {
-      return next();
-    }
-    
-    // If no API key provided
-    if (!apiKey) {
-      return res.status(401).json({ 
-        error: { 
-          message: "API key is required. Include it as an 'x-api-key' header or 'api_key' query parameter." 
-        } 
-      });
-    }
-    
-    // Find the API key configuration
-    const keyConfig = API_KEYS.find(k => k.value === apiKey);
-    
-    // If API key is invalid
-    if (!keyConfig) {
-      log(`Invalid API key attempt: ${maskApiKey(apiKey)}`, 'security');
-      return res.status(401).json({ 
-        error: { 
-          message: "Invalid API key." 
-        } 
-      });
-    }
-    
-    // Check permission
-    if (requiredPermission && 
-        !keyConfig.permissions.includes(requiredPermission) && 
-        !keyConfig.permissions.includes(requiredPermission.split(':')[0] + ':*')) {
-      log(`Permission denied for API key ${keyConfig.name}: ${requiredPermission}`, 'security');
-      return res.status(403).json({ 
-        error: { 
-          message: "You don't have permission to access this resource." 
-        } 
-      });
-    }
-    
-    // Check rate limit
-    if (keyConfig.rateLimit) {
-      const now = Date.now();
-      
-      // Ensure we're using a string key for the rateLimiters object
-      const keyString = String(apiKey);
-      const rateLimiter = rateLimiters[keyString] || { count: 0, resetTime: now + keyConfig.rateLimit.timeWindowMs };
-      
-      // Reset if the time window has passed
-      if (now > rateLimiter.resetTime) {
-        rateLimiter.count = 0;
-        rateLimiter.resetTime = now + keyConfig.rateLimit.timeWindowMs;
-      }
-      
-      // Increment request count
-      rateLimiter.count++;
-      rateLimiters[keyString] = rateLimiter;
-      
-      // Check if rate limit exceeded
-      if (rateLimiter.count > keyConfig.rateLimit.maxRequests) {
-        log(`Rate limit exceeded for API key ${keyConfig.name}`, 'security');
-        return res.status(429).json({ 
-          error: { 
-            message: "Rate limit exceeded. Try again later." 
-          } 
-        });
-      }
-      
-      // Add rate limit headers
-      res.setHeader('X-RateLimit-Limit', keyConfig.rateLimit.maxRequests.toString());
-      res.setHeader('X-RateLimit-Remaining', (keyConfig.rateLimit.maxRequests - rateLimiter.count).toString());
-      res.setHeader('X-RateLimit-Reset', Math.floor(rateLimiter.resetTime / 1000).toString());
-    }
-    
-    // Add API key info to request for further reference
-    (req as any).apiKey = {
-      name: keyConfig.name,
-      permissions: keyConfig.permissions
-    };
-    
-    next();
-  };
-}
-
-/**
- * Create a hash of an IP address to log it without revealing it completely
- */
-export function hashIp(ip: string): string {
-  return crypto.createHash('sha256').update(ip + 'iprn-salt').digest('hex').substring(0, 8);
-}
-
-/**
- * Mask an API key for logging (shows only first and last 4 characters)
- */
-function maskApiKey(apiKey: string): string {
-  if (apiKey.length < 8) return '****';
-  return apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4);
-}
-
-/**
- * Middleware to validate webhook signature from providers that support it
- */
-export function validateWebhookSignature(req: Request, res: Response, next: NextFunction) {
-  const provider = req.query.provider || req.body?.provider;
-  const signature = req.headers['x-webhook-signature'] as string;
-  const timestamp = req.headers['x-webhook-timestamp'] as string;
-  
-  // Skip signature validation in development or if not provided
-  if (process.env.NODE_ENV === "development" || !signature) {
+export async function validateApiKey(req: Request, res: Response, next: NextFunction) {
+  // Skip validation in development mode unless explicitly enabled
+  if (!isProduction && !process.env.ENFORCE_API_KEY_IN_DEV) {
+    log('API key validation disabled in development mode', 'security');
     return next();
   }
-  
-  if (provider === 'twilio') {
-    // Example for Twilio signature validation
-    // In a real app, use the Twilio SDK's validateRequest function
-    log(`Validating Twilio webhook signature`, 'security');
-    // validateTwilioSignature(signature, req.url, req.body);
-  } else if (provider === 'infobip') {
-    // Example for Infobip or other provider validation
-    log(`Validating ${provider} webhook signature`, 'security');
+
+  try {
+    // Get API key from different possible sources
+    const apiKey = 
+      req.headers[API_KEY_HEADER.toLowerCase()] as string || 
+      req.query.api_key as string || 
+      req.body?.apiKey;
+
+    if (!apiKey) {
+      log('API key missing', 'security');
+      return res.status(401).json({ error: 'API key required' });
+    }
+
+    // Check if key exists in database
+    const setting = await storage.getSettingByKey('api_keys');
+    
+    if (!setting || !setting.value) {
+      log('No API keys defined in the system', 'security');
+      return res.status(500).json({ error: 'API key validation system not configured' });
+    }
+
+    // Parse the stored API keys
+    let storedKeys: Array<{key: string, name: string, permissions: string[]}> = [];
+    
+    try {
+      storedKeys = JSON.parse(setting.value);
+    } catch (e) {
+      log('Invalid API key storage format', 'security');
+      return res.status(500).json({ error: 'API key storage format invalid' });
+    }
+
+    // Find the provided key in our stored keys
+    const keyMatch = storedKeys.find(k => k.key === apiKey);
+    
+    if (!keyMatch) {
+      log('Invalid API key provided', 'security');
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    // Add API key info to request for potential later use
+    (req as any).apiKeyInfo = {
+      name: keyMatch.name,
+      permissions: keyMatch.permissions
+    };
+    
+    log(`API key validated for: ${keyMatch.name}`, 'security');
+    return next();
+  } catch (error) {
+    log(`API key validation error: ${error instanceof Error ? error.message : String(error)}`, 'security');
+    return res.status(500).json({ error: 'Error validating API key' });
   }
-  
-  // For this example, we'll just pass through
-  // In a real app, you would validate the signature and respond with 403 if invalid
-  next();
 }
 
 /**
- * Generate a webhook token for secure webhooks
+ * Generates an HMAC signature for webhook validation
  */
-export function generateWebhookToken(webhookId: string): string {
-  // In a real app, you would use a proper key management system
-  const secretKey = process.env.WEBHOOK_SECRET_KEY || "dev_webhook_secret_key";
-  const hmac = crypto.createHmac('sha256', secretKey);
-  hmac.update(webhookId);
-  return hmac.digest('hex');
+export function generateWebhookSignature(payload: string, secret = API_SECRET): string {
+  return crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+}
+
+/**
+ * Validates a webhook signature
+ */
+export function validateWebhookSignature(
+  payload: string, 
+  signature: string,
+  secret = API_SECRET
+): boolean {
+  const expectedSignature = generateWebhookSignature(payload, secret);
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+
+/**
+ * Anonymizes an IP address for privacy protection
+ * Converts the last octet of IPv4 or last 80 bits of IPv6 to zeros
+ */
+export function anonymizeIp(ip: string): string {
+  // Handle IPv4
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    parts[3] = '0'; // Zero out last octet
+    return parts.join('.');
+  } 
+  // Handle IPv6
+  else if (ip.includes(':')) {
+    const parts = ip.split(':');
+    // Zero out last 5 segments (80 bits)
+    const anonymized = parts.slice(0, 3).concat(Array(5).fill('0000'));
+    return anonymized.join(':');
+  }
+  
+  // Invalid IP format
+  return 'unknown';
+}
+
+/**
+ * Calculate a hash of an IP address for more secure storage
+ */
+export function hashIpAddress(ip: string, salt = API_SECRET): string {
+  return crypto
+    .createHash('sha256')
+    .update(ip + salt)
+    .digest('hex');
+}
+
+/**
+ * Middleware to validate webhook signatures
+ */
+export function validateWebhook(req: Request, res: Response, next: NextFunction) {
+  // Skip validation in development mode unless explicitly enabled
+  if (!isProduction && !process.env.ENFORCE_WEBHOOK_SIG_IN_DEV) {
+    return next();
+  }
+
+  try {
+    const signature = req.headers['x-webhook-signature'] as string;
+    
+    if (!signature) {
+      return res.status(401).json({ error: 'Webhook signature required' });
+    }
+    
+    // For GET requests, use the query string as the payload
+    // For POST requests, use the request body
+    let payload: string;
+    
+    if (req.method === 'GET') {
+      payload = JSON.stringify(req.query);
+    } else {
+      payload = JSON.stringify(req.body);
+    }
+    
+    if (!validateWebhookSignature(payload, signature)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+    
+    next();
+  } catch (error) {
+    return res.status(500).json({ error: 'Error validating webhook signature' });
+  }
+}
+
+/**
+ * Generate a secure random API key
+ */
+export function generateApiKey(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Create or update an API key in the database
+ */
+export async function createApiKey(name: string, permissions: string[] = ['webhooks']): Promise<string> {
+  try {
+    const newKey = generateApiKey();
+    
+    // Get existing keys
+    const setting = await storage.getSettingByKey('api_keys');
+    let keys = [];
+    
+    if (setting && setting.value) {
+      try {
+        keys = JSON.parse(setting.value);
+      } catch (e) {
+        keys = [];
+      }
+    }
+    
+    // Add the new key
+    keys.push({
+      key: newKey,
+      name,
+      permissions,
+      created: new Date().toISOString()
+    });
+    
+    // Save the updated keys
+    if (setting) {
+      await storage.updateSetting(setting.id, {
+        key: 'api_keys',
+        value: JSON.stringify(keys),
+        category: 'security',
+        description: 'API keys for system access'
+      });
+    } else {
+      await storage.createSetting({
+        key: 'api_keys',
+        value: JSON.stringify(keys),
+        category: 'security',
+        description: 'API keys for system access'
+      });
+    }
+    
+    return newKey;
+  } catch (error) {
+    log(`Error creating API key: ${error instanceof Error ? error.message : String(error)}`, 'security');
+    throw new Error('Failed to create API key');
+  }
+}
+
+/**
+ * Delete an API key from the database
+ */
+export async function deleteApiKey(keyToDelete: string): Promise<boolean> {
+  try {
+    // Get existing keys
+    const setting = await storage.getSettingByKey('api_keys');
+    if (!setting || !setting.value) {
+      return false;
+    }
+    
+    let keys = [];
+    try {
+      keys = JSON.parse(setting.value);
+    } catch (e) {
+      return false;
+    }
+    
+    // Remove the key
+    const filteredKeys = keys.filter((k: any) => k.key !== keyToDelete);
+    
+    if (filteredKeys.length === keys.length) {
+      // Key not found
+      return false;
+    }
+    
+    // Save the updated keys
+    await storage.updateSetting(setting.id, {
+      key: 'api_keys',
+      value: JSON.stringify(filteredKeys),
+      category: 'security',
+      description: 'API keys for system access'
+    });
+    
+    return true;
+  } catch (error) {
+    log(`Error deleting API key: ${error instanceof Error ? error.message : String(error)}`, 'security');
+    return false;
+  }
 }

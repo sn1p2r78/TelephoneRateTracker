@@ -8,7 +8,7 @@ import {
 } from "../integrations/http";
 import { log } from "../vite";
 import { storage } from "../storage";
-import { validateApiKey, validateWebhookSignature, hashIp } from "../lib/security";
+import { validateApiKey, validateWebhookSignature, hashIpAddress as hashIp, anonymizeIp } from "../lib/security";
 
 // Create a router for webhook endpoints
 const webhookRouter = Router();
@@ -22,16 +22,34 @@ webhookRouter.use((req, res, next) => {
   next();
 });
 
-// Add webhook signature validation for providers that support it
-webhookRouter.use(validateWebhookSignature);
+// Optional webhook signature validation for providers that support it
+// Uses X-Webhook-Signature header to validate requests
+webhookRouter.use((req, res, next) => {
+  // Only validate if the header is present
+  const signature = req.headers['x-webhook-signature'];
+  if (signature) {
+    // Get the payload to validate (query params or body)
+    const payload = req.method === 'GET' 
+      ? JSON.stringify(req.query) 
+      : JSON.stringify(req.body);
+    
+    // Validate the signature
+    if (!validateWebhookSignature(payload, signature as string)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+  }
+  
+  // Continue to next middleware
+  next();
+});
 
-// In development mode, don't require API keys
-if (process.env.NODE_ENV !== 'production') {
+// In development mode, don't require API keys by default
+if (process.env.NODE_ENV === 'development' && !process.env.ENFORCE_API_KEY_IN_DEV) {
   // Skip API key validation in development
   log('API key validation disabled in development mode', 'security');
 } else {
   // Apply API key validation to all webhook routes in production
-  webhookRouter.use(validateApiKey('webhook:access'));
+  webhookRouter.use((req, res, next) => validateApiKey(req, res, next));
 }
 
 // SMS Webhooks
