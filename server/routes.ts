@@ -20,6 +20,7 @@ import {
   smsAutoResponders,
 } from "@shared/schema";
 import webhookRouter from "./routes/webhook";
+import apiKeyRouter from "./routes/api-keys";
 import { initializeIntegrations, getIntegrationsStatus } from "./integrations";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -28,6 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set up webhooks routes
   app.use('/api/webhooks', webhookRouter);
+  app.use('/api/api-keys', apiKeyRouter);
   
   // Initialize integrations (SMPP, HTTP, etc.)
   await initializeIntegrations();
