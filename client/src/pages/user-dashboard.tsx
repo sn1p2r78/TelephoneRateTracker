@@ -1,410 +1,290 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import HeaderNav from "@/components/header-nav";
-import SidebarNav from "@/components/sidebar-nav";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AreaChart,
-  BarChart,
-  LineChart,
-  DonutChart,
-} from "@/components/data-display/charts";
-import {
-  ArrowUpRight,
-  BarChart3,
-  CalendarRange,
-  DollarSign,
-  Download,
-  ExternalLink,
-  LineChart as LineChartIcon,
-  MessageSquare,
-  PhoneCall,
-  PieChart,
-  Plus,
-  RefreshCw,
-  SlidersHorizontal,
-  Smartphone
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DataTable } from '@/components/ui/data-table';
+import { RolePanel } from '@/components/role-panel';
+import { Loader2, Activity, DollarSign, PhoneCall, MessageCircle, User, Users, Calendar } from 'lucide-react';
+import { formatCurrency, formatNumber } from '@/lib/utils';
+
+// Dashboard stat card component
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ReactNode;
+  trend?: {
+    value: number;
+    label: string;
+  };
+  loading?: boolean;
+}
+
+const StatCard = ({ title, value, description, icon, trend, loading }: StatCardProps) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <div className="h-4 w-4 text-muted-foreground">{icon}</div>
+    </CardHeader>
+    <CardContent>
+      {loading ? (
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading...</span>
+        </div>
+      ) : (
+        <>
+          <div className="text-2xl font-bold">{value}</div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+          {trend && (
+            <div className={`flex items-center mt-2 text-xs ${trend.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
+            </div>
+          )}
+        </>
+      )}
+    </CardContent>
+  </Card>
+);
+
+// Sample data for charts
+const revenueData = [
+  { name: 'Jan', revenue: 3000 },
+  { name: 'Feb', revenue: 3500 },
+  { name: 'Mar', revenue: 2800 },
+  { name: 'Apr', revenue: 4200 },
+  { name: 'May', revenue: 3800 },
+  { name: 'Jun', revenue: 4300 },
+  { name: 'Jul', revenue: 5000 },
+];
+
+const messagesData = [
+  { name: 'Mon', sms: 120, calls: 45 },
+  { name: 'Tue', sms: 180, calls: 60 },
+  { name: 'Wed', sms: 150, calls: 55 },
+  { name: 'Thu', sms: 200, calls: 70 },
+  { name: 'Fri', sms: 230, calls: 80 },
+  { name: 'Sat', sms: 140, calls: 40 },
+  { name: 'Sun', sms: 100, calls: 25 },
+];
+
+const countryData = [
+  { name: 'USA', value: 35 },
+  { name: 'UK', value: 25 },
+  { name: 'Germany', value: 15 },
+  { name: 'France', value: 10 },
+  { name: 'Others', value: 15 },
+];
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A569BD'];
 
 export default function UserDashboardPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('overview');
   
-  // Fetch dashboard data
-  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
-    queryKey: ["/api/user/dashboard"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/user/dashboard");
-      return await response.json();
-    },
+  // Get dashboard data based on user role
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ['/api/dashboard'],
+    enabled: !!user,
   });
-  
-  // Fetch user's recent activity
-  const { data: activityData, isLoading: activityLoading } = useQuery({
-    queryKey: ["/api/user/activity"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/user/activity");
-      return await response.json();
-    },
-  });
-  
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-  
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, 'MMM d, yyyy');
-  };
-  
-  const formatActivityTime = (date: string | Date | null) => {
-    if (!date) return 'Unknown';
-    return formatDistanceToNow(new Date(date), { addSuffix: true });
-  };
-  
-  const getActivityIcon = (type: string) => {
-    if (type === 'call') {
-      return <PhoneCall className="h-4 w-4 text-blue-500" />;
-    } else {
-      return <MessageSquare className="h-4 w-4 text-green-500" />;
-    }
-  };
 
+  // Determine which dashboard to show based on user role
+  const userRole = user?.role || 'user';
+  
   return (
-    <div className="flex h-screen bg-background">
-      <div className={`${sidebarOpen ? "block" : "hidden"} md:block`}>
-        <SidebarNav />
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome back, {user?.fullName || user?.username || 'User'}!
+        </p>
       </div>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <HeaderNav title="Dashboard" toggleSidebar={toggleSidebar} />
-
-        <div className="flex-1 overflow-auto p-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold">Dashboard</h1>
-              <p className="text-muted-foreground mt-1">
-                Overview of your premium rate numbers and activity
-              </p>
-            </div>
+      
+      <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Key metrics - shows for all roles */}
+            <StatCard 
+              title="Total Revenue" 
+              value={isLoading ? '...' : formatCurrency(dashboardData?.totalRevenue || 0)}
+              description="Lifetime earnings from premium rate numbers"
+              icon={<DollarSign className="h-4 w-4" />}
+              trend={{ value: 12.5, label: 'from last month' }}
+              loading={isLoading}
+            />
             
-            {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-              <Card>
-                <CardContent className="p-6 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <Smartphone className="h-6 w-6 text-primary" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-green-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Active Numbers</p>
-                    <p className="text-2xl font-bold">
-                      {dashboardLoading ? (
-                        <span className="animate-pulse">...</span>
-                      ) : (
-                        dashboardData?.activeNumbers || 0
-                      )}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <PhoneCall className="h-6 w-6 text-primary" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-green-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Total Calls</p>
-                    <p className="text-2xl font-bold">
-                      {dashboardLoading ? (
-                        <span className="animate-pulse">...</span>
-                      ) : (
-                        dashboardData?.totalCalls || 0
-                      )}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <MessageSquare className="h-6 w-6 text-primary" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-green-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Total SMS</p>
-                    <p className="text-2xl font-bold">
-                      {dashboardLoading ? (
-                        <span className="animate-pulse">...</span>
-                      ) : (
-                        dashboardData?.totalSMS || 0
-                      )}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <DollarSign className="h-6 w-6 text-primary" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-green-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Total Revenue</p>
-                    <p className="text-2xl font-bold">
-                      {dashboardLoading ? (
-                        <span className="animate-pulse">...</span>
-                      ) : (
-                        formatCurrency(dashboardData?.totalRevenue || 0)
-                      )}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <StatCard 
+              title="Call Minutes" 
+              value={isLoading ? '...' : formatNumber(dashboardData?.callMinutes || 0)}
+              description="Total call minutes processed"
+              icon={<PhoneCall className="h-4 w-4" />}
+              trend={{ value: 8.2, label: 'from last month' }}
+              loading={isLoading}
+            />
             
-            {/* Revenue and Analytics */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 mb-6">
-              <Card className="lg:col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Revenue Overview</CardTitle>
-                    <CardDescription>
-                      Monthly revenue from calls and SMS
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <CalendarRange className="h-4 w-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {dashboardLoading ? (
-                    <div className="w-full aspect-[4/3] flex items-center justify-center bg-muted/10 rounded-lg">
-                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : dashboardData?.revenueHistory ? (
-                    <BarChart
-                      data={dashboardData.revenueHistory}
-                      xField="date"
-                      series={[
-                        { name: "Voice", field: "voice" },
-                        { name: "SMS", field: "sms" },
-                      ]}
-                      colors={["#2563eb", "#10b981"]}
-                      height={300}
-                    />
-                  ) : (
-                    <div className="w-full aspect-[4/3] flex items-center justify-center bg-muted/10 rounded-lg">
-                      <p className="text-muted-foreground">No revenue data available</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Revenue Breakdown</CardTitle>
-                  <CardDescription>
-                    Revenue distribution by service type
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {dashboardLoading ? (
-                    <div className="w-full aspect-[1/1] flex items-center justify-center bg-muted/10 rounded-lg">
-                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : (
-                    <>
-                      <DonutChart
-                        data={[
-                          { name: "Voice", value: dashboardData?.callRevenue || 0 },
-                          { name: "SMS", value: dashboardData?.smsRevenue || 0 },
-                        ]}
-                        colors={["#2563eb", "#10b981"]}
-                        height={220}
-                        showLabels={true}
-                      />
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                            <span className="text-sm font-medium">Voice</span>
-                          </div>
-                          <p className="font-bold">{formatCurrency(dashboardData?.callRevenue || 0)}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                            <span className="text-sm font-medium">SMS</span>
-                          </div>
-                          <p className="font-bold">{formatCurrency(dashboardData?.smsRevenue || 0)}</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <StatCard 
+              title="SMS Messages" 
+              value={isLoading ? '...' : formatNumber(dashboardData?.smsCount || 0)}
+              description="Total SMS messages received"
+              icon={<MessageCircle className="h-4 w-4" />}
+              trend={{ value: 14.3, label: 'from last month' }}
+              loading={isLoading}
+            />
             
-            {/* Recent Activity */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>
-                      Your latest calls and messages
-                    </CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {activityLoading ? (
-                    <div className="flex justify-center py-10">
-                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : !activityData || activityData.length === 0 ? (
-                    <div className="text-center py-10">
-                      <MessageSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-medium mb-2">No Activity Yet</h3>
-                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                        Once you start receiving calls and messages to your premium numbers, they'll appear here.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {activityData.map((activity: any) => (
-                        <div key={`${activity.activityType}-${activity.id}`} className="flex items-start gap-4 p-3 rounded-lg hover:bg-accent/50 transition-colors">
-                          <div className={`p-2 rounded-full ${activity.activityType === 'call' ? 'bg-blue-100' : 'bg-green-100'}`}>
-                            {getActivityIcon(activity.activityType)}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="font-medium">
-                                  {activity.activityType === 'call' ? 'Call' : 'SMS'} from {activity.caller || activity.sender || 'Unknown'}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {activity.activityType === 'call' ? 
-                                    `Duration: ${activity.duration || 0}s` : 
-                                    `Message: ${activity.message?.substring(0, 40)}${activity.message?.length > 40 ? '...' : ''}`
-                                  }
-                                </p>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {formatActivityTime(activity.timestamp)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="text-center mt-4">
-                        <Button variant="link" asChild>
-                          <a href="/cdir">
-                            View All Activity
-                            <ExternalLink className="ml-2 h-4 w-4" />
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>
-                    Common tasks and shortcuts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button className="w-full justify-start" asChild>
-                    <a href="/number-request">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Request New Numbers
-                    </a>
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline" asChild>
-                    <a href="/number-requests">
-                      <Smartphone className="mr-2 h-4 w-4" />
-                      View My Numbers
-                    </a>
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline" asChild>
-                    <a href="/payment-profile">
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Payment Settings
-                    </a>
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline" asChild>
-                    <a href="/auto-responders">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      SMS Auto-Responders
-                    </a>
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline" asChild>
-                    <a href="/api-integrations">
-                      <SlidersHorizontal className="mr-2 h-4 w-4" />
-                      API Integrations
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <StatCard 
+              title="Active Numbers" 
+              value={isLoading ? '...' : formatNumber(dashboardData?.activeNumberCount || 0)}
+              description="Currently active premium rate numbers"
+              icon={<PhoneCall className="h-4 w-4" />}
+              loading={isLoading}
+            />
           </div>
-        </div>
-      </div>
+          
+          {/* Charts section - only shows for admin and users with enough data */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardHeader>
+                <CardTitle>Revenue Overview</CardTitle>
+                <CardDescription>Monthly revenue from premium rate numbers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Traffic by Country</CardTitle>
+                <CardDescription>Call and SMS distribution by country</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={countryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {countryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Recent activity - not shown for test users */}
+          {userRole !== 'test' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest call and SMS activities</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={messagesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="sms" fill="#8884d8" name="SMS Messages" />
+                    <Bar dataKey="calls" fill="#82ca9d" name="Calls" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline">View All Activity</Button>
+              </CardFooter>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="analytics" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Analytics</CardTitle>
+              <CardDescription>Detailed analytics for your premium rate numbers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Advanced analytics features coming soon. This section will include detailed reports,
+                custom date range filters, and performance comparisons.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="account" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+                <CardDescription>Your profile and account details</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Username</span>
+                    <span className="text-sm text-muted-foreground">{user?.username}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Full Name</span>
+                    <span className="text-sm text-muted-foreground">{user?.fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Email</span>
+                    <span className="text-sm text-muted-foreground">{user?.email || 'Not set'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Phone</span>
+                    <span className="text-sm text-muted-foreground">{user?.phoneNumber || 'Not set'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Account Status</span>
+                    <span className="text-sm text-muted-foreground capitalize">{user?.status || 'Active'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Current Balance</span>
+                    <span className="text-sm text-muted-foreground">{formatCurrency(user?.balance || 0)}</span>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline">Edit Profile</Button>
+              </CardFooter>
+            </Card>
+            
+            <RolePanel />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

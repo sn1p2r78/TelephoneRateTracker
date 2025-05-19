@@ -1,460 +1,386 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import HeaderNav from "@/components/header-nav";
-import SidebarNav from "@/components/sidebar-nav";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  FolderPlus,
-  GlobeIcon,
-  Hash,
-  Phone,
-  PhoneCall,
-  Search,
-  SlidersHorizontal,
-  XCircle,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { apiRequest } from '@/lib/queryClient';
+import { formatDateForDisplay } from '@/lib/utils';
+import { Loader2, Plus, RefreshCw, Check, X } from 'lucide-react';
+
+// Sample country list - would be fetched from API in a real application
+const countryOptions = [
+  { value: 'us', label: 'United States' },
+  { value: 'uk', label: 'United Kingdom' },
+  { value: 'ca', label: 'Canada' },
+  { value: 'de', label: 'Germany' },
+  { value: 'fr', label: 'France' },
+  { value: 'it', label: 'Italy' },
+  { value: 'es', label: 'Spain' },
+  { value: 'ru', label: 'Russia' },
+  { value: 'jp', label: 'Japan' },
+  { value: 'cn', label: 'China' },
+];
+
+// Sample service types
+const serviceOptions = [
+  { value: 'support', label: 'Support' },
+  { value: 'entertainment', label: 'Entertainment' },
+  { value: 'adult', label: 'Adult Services' },
+  { value: 'psychic', label: 'Psychic Services' },
+  { value: 'information', label: 'Information Services' },
+];
+
+const getStatusBadge = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
+    case 'approved':
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
+    case 'rejected':
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
+    case 'fulfilled':
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Fulfilled</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+};
 
 export default function NumberRequestsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  // Fetch user's number requests
-  const { data: numberRequests, isLoading } = useQuery({
-    queryKey: ["/api/numbers/my-requests"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/numbers/my-requests");
-      return await response.json();
-    },
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('my-requests');
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    country: '',
+    serviceType: '',
+    quantity: 1,
+    notes: ''
   });
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const getRequestStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-          <CheckCircle2 className="w-3 h-3 mr-1" />
-          Approved
-        </Badge>;
-      case "pending":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">
-          <Clock className="w-3 h-3 mr-1" />
-          Pending
-        </Badge>;
-      case "rejected":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">
-          <XCircle className="w-3 h-3 mr-1" />
-          Rejected
-        </Badge>;
-      case "fulfilled":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-          <CheckCircle2 className="w-3 h-3 mr-1" />
-          Fulfilled
-        </Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  
+  // Get user's number requests
+  const { 
+    data: numberRequests = [], 
+    isLoading,
+    refetch: refetchRequests
+  } = useQuery({
+    queryKey: ['/api/numbers/my-requests'],
+    enabled: !!user,
+  });
+  
+  // Mutation for creating new number request
+  const createRequestMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', '/api/numbers/request', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Request Submitted',
+        description: 'Your number request has been submitted successfully.',
+      });
+      setFormData({
+        country: '',
+        serviceType: '',
+        quantity: 1,
+        notes: ''
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/numbers/my-requests'] });
+      setActiveTab('my-requests');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Request Failed',
+        description: error.message || 'Failed to submit your number request.',
+        variant: 'destructive',
+      });
     }
+  });
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-
+  
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!formData.country || !formData.serviceType || formData.quantity < 1) {
+      toast({
+        title: 'Invalid Request',
+        description: 'Please complete all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    createRequestMutation.mutate({
+      ...formData,
+      userId: user?.id
+    });
+  };
+  
+  // Filter requests by status
+  const pendingRequests = numberRequests.filter((request: any) => 
+    request.status.toLowerCase() === 'pending'
+  );
+  
+  const approvedRequests = numberRequests.filter((request: any) => 
+    request.status.toLowerCase() === 'approved' || 
+    request.status.toLowerCase() === 'fulfilled'
+  );
+  
   return (
-    <div className="flex h-screen bg-background">
-      <div className={`${sidebarOpen ? "block" : "hidden"} md:block`}>
-        <SidebarNav />
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Number Requests</h1>
+        <p className="text-muted-foreground">
+          Request new premium rate numbers for your account
+        </p>
       </div>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <HeaderNav title="Number Requests" toggleSidebar={toggleSidebar} />
-
-        <div className="flex-1 overflow-auto p-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-              <div>
-                <h1 className="text-3xl font-bold">My Number Requests</h1>
-                <p className="text-muted-foreground mt-1">
-                  Track and manage your premium rate number requests
-                </p>
-              </div>
-              <div className="mt-4 md:mt-0">
-                <Button asChild>
-                  <a href="/number-request">
-                    <FolderPlus className="mr-2 h-4 w-4" />
-                    New Request
-                  </a>
-                </Button>
-              </div>
+      
+      <Tabs defaultValue="my-requests" className="space-y-4" onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="my-requests">My Requests</TabsTrigger>
+          <TabsTrigger value="new-request">New Request</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="my-requests" className="space-y-4">
+          <div className="flex justify-between mb-4">
+            <h2 className="text-xl font-semibold">Request History</h2>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => refetchRequests()} 
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Refresh
+            </Button>
+          </div>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-
-            <Tabs defaultValue="all">
-              <div className="flex items-center justify-between mb-6">
-                <TabsList>
-                  <TabsTrigger value="all">All Requests</TabsTrigger>
-                  <TabsTrigger value="pending">Pending</TabsTrigger>
-                  <TabsTrigger value="approved">Approved</TabsTrigger>
-                  <TabsTrigger value="fulfilled">Fulfilled</TabsTrigger>
-                </TabsList>
-                <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
+          ) : numberRequests.length === 0 ? (
+            <Card>
+              <CardContent className="py-10">
+                <div className="text-center">
+                  <p className="mb-2 text-muted-foreground">You haven't made any number requests yet.</p>
+                  <Button onClick={() => setActiveTab('new-request')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Request
                   </Button>
                 </div>
-              </div>
-
-              <TabsContent value="all">
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {pendingRequests.length > 0 && (
                 <Card>
-                  <CardContent className="p-0">
-                    {isLoading ? (
-                      <div className="py-12 flex justify-center">
-                        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-                      </div>
-                    ) : !numberRequests || numberRequests.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                          <Phone className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <h3 className="text-lg font-medium mb-2">No number requests yet</h3>
-                        <p className="text-muted-foreground mb-6">
-                          You haven't requested any premium rate numbers yet.
-                        </p>
-                        <Button asChild>
-                          <a href="/number-request">Request Numbers</a>
-                        </Button>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Request ID</TableHead>
-                            <TableHead>Country</TableHead>
-                            <TableHead>Service Type</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Date Requested</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {numberRequests.map((request: any) => (
-                            <TableRow key={request.id}>
-                              <TableCell className="font-medium">#{request.id}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <GlobeIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                  {request.country}
-                                </div>
-                              </TableCell>
-                              <TableCell>{request.serviceType}</TableCell>
-                              <TableCell>{request.quantity}</TableCell>
-                              <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                              <TableCell>
-                                {request.createdAt && (
-                                  <div className="flex flex-col">
-                                    <span className="text-xs">
-                                      {format(new Date(request.createdAt), "MMM d, yyyy")}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                                    </span>
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" asChild>
-                                  <a href={`/number-requests/${request.id}`}>
-                                    <ExternalLink className="h-4 w-4" />
-                                  </a>
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pending">
-                <Card>
-                  <CardContent className="p-0">
+                  <CardHeader className="pb-2">
+                    <CardTitle>Pending Requests</CardTitle>
+                    <CardDescription>
+                      These requests are waiting for approval
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Request ID</TableHead>
                           <TableHead>Country</TableHead>
                           <TableHead>Service Type</TableHead>
                           <TableHead>Quantity</TableHead>
-                          <TableHead>Status</TableHead>
                           <TableHead>Date Requested</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'pending').map((request: any) => (
+                        {pendingRequests.map((request: any) => (
                           <TableRow key={request.id}>
-                            <TableCell className="font-medium">#{request.id}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <GlobeIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {request.country}
-                              </div>
-                            </TableCell>
-                            <TableCell>{request.serviceType}</TableCell>
+                            <TableCell>{countryOptions.find(c => c.value === request.country)?.label || request.country}</TableCell>
+                            <TableCell>{serviceOptions.find(s => s.value === request.serviceType)?.label || request.serviceType}</TableCell>
                             <TableCell>{request.quantity}</TableCell>
-                            <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                            <TableCell>
-                              {request.createdAt && (
-                                <div className="flex flex-col">
-                                  <span className="text-xs">
-                                    {format(new Date(request.createdAt), "MMM d, yyyy")}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                                  </span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={`/number-requests/${request.id}`}>
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            </TableCell>
+                            <TableCell>{formatDateForDisplay(request.createdAt)}</TableCell>
+                            <TableCell>{getStatusBadge(request.status)}</TableCell>
                           </TableRow>
                         ))}
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'pending').length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-6">
-                              <div className="flex flex-col items-center justify-center">
-                                <Clock className="h-6 w-6 text-muted-foreground mb-2" />
-                                <p className="text-muted-foreground">No pending requests found</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              <TabsContent value="approved">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Request ID</TableHead>
-                          <TableHead>Country</TableHead>
-                          <TableHead>Service Type</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Date Requested</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'approved').map((request: any) => (
-                          <TableRow key={request.id}>
-                            <TableCell className="font-medium">#{request.id}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <GlobeIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {request.country}
-                              </div>
-                            </TableCell>
-                            <TableCell>{request.serviceType}</TableCell>
-                            <TableCell>{request.quantity}</TableCell>
-                            <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                            <TableCell>
-                              {request.createdAt && (
-                                <div className="flex flex-col">
-                                  <span className="text-xs">
-                                    {format(new Date(request.createdAt), "MMM d, yyyy")}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                                  </span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={`/number-requests/${request.id}`}>
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'approved').length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-6">
-                              <div className="flex flex-col items-center justify-center">
-                                <CheckCircle2 className="h-6 w-6 text-muted-foreground mb-2" />
-                                <p className="text-muted-foreground">No approved requests found</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="fulfilled">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Request ID</TableHead>
-                          <TableHead>Country</TableHead>
-                          <TableHead>Service Type</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Date Requested</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'fulfilled').map((request: any) => (
-                          <TableRow key={request.id}>
-                            <TableCell className="font-medium">#{request.id}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <GlobeIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {request.country}
-                              </div>
-                            </TableCell>
-                            <TableCell>{request.serviceType}</TableCell>
-                            <TableCell>{request.quantity}</TableCell>
-                            <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                            <TableCell>
-                              {request.createdAt && (
-                                <div className="flex flex-col">
-                                  <span className="text-xs">
-                                    {format(new Date(request.createdAt), "MMM d, yyyy")}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                                  </span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={`/number-requests/${request.id}`}>
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {!isLoading && numberRequests?.filter((r: any) => r.status === 'fulfilled').length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-6">
-                              <div className="flex flex-col items-center justify-center">
-                                <Hash className="h-6 w-6 text-muted-foreground mb-2" />
-                                <p className="text-muted-foreground">No fulfilled requests found</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            {/* Information Cards */}
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-3 mt-8">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center">
-                    <Clock className="h-5 w-5 mr-2 text-muted-foreground" />
-                    Processing Time
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Number requests are typically processed within 1-3 business days. You'll receive a notification once your request has been reviewed.
-                  </p>
-                </CardContent>
-              </Card>
+              )}
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center">
-                    <AlertTriangle className="h-5 w-5 mr-2 text-muted-foreground" />
-                    Request Limits
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Each account may have up to 10 active requests at a time. You can request up to 100 numbers per request, subject to availability.
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center">
-                    <PhoneCall className="h-5 w-5 mr-2 text-muted-foreground" />
-                    Activation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Once your request is fulfilled, the numbers will be activated and added to your account. You can then use them for your services.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
+              {approvedRequests.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle>Approved Requests</CardTitle>
+                    <CardDescription>
+                      These numbers have been assigned to your account
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Country</TableHead>
+                          <TableHead>Service Type</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Date Assigned</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {approvedRequests.map((request: any) => (
+                          <TableRow key={request.id}>
+                            <TableCell>{countryOptions.find(c => c.value === request.country)?.label || request.country}</TableCell>
+                            <TableCell>{serviceOptions.find(s => s.value === request.serviceType)?.label || request.serviceType}</TableCell>
+                            <TableCell>{request.quantity}</TableCell>
+                            <TableCell>{formatDateForDisplay(request.updatedAt || request.createdAt)}</TableCell>
+                            <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                  <CardFooter>
+                    <Button variant="outline" className="w-full">
+                      View Assigned Numbers
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="new-request">
+          <Card>
+            <CardHeader>
+              <CardTitle>Request New Numbers</CardTitle>
+              <CardDescription>
+                Fill out the form below to request premium rate numbers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={formData.country} 
+                      onValueChange={(value) => handleSelectChange('country', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="serviceType">Service Type <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={formData.serviceType} 
+                      onValueChange={(value) => handleSelectChange('serviceType', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select service type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Quantity <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="quantity"
+                    name="quantity"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    className="max-w-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">Maximum 10 numbers per request</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Additional Notes</Label>
+                  <Input
+                    id="notes"
+                    name="notes"
+                    placeholder="Any specific requirements or preferences"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <Separator className="my-4" />
+                
+                <div className="flex items-start">
+                  <div className="bg-yellow-50 p-4 rounded text-sm text-yellow-800 flex space-x-3">
+                    <div className="mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium mb-1">Important Information</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Number requests are subject to approval and availability</li>
+                        <li>Processing may take 24-48 hours</li>
+                        <li>Rates and charges will be displayed after approval</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => setActiveTab('my-requests')}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit}
+                disabled={createRequestMutation.isPending}
+              >
+                {createRequestMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit Request
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
