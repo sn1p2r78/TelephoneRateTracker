@@ -15,7 +15,7 @@ import AutoResponders from "@/pages/auto-responders";
 import CDIRPage from "@/pages/cdir";
 import ApiDocsPage from "@/pages/api-docs";
 import ApiKeysPage from "@/pages/api-keys";
-import UserDashboardPage from "@/pages/user-dashboard";
+import UserDashboardPage from "@/pages/user-dashboard-fixed";
 import NumberRequestsPage from "@/pages/number-requests";
 import PaymentProfilePage from "@/pages/payment-profile";
 import { ThemeProvider } from "@/components/theme-provider";

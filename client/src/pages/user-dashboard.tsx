@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DataTable } from '@/components/ui/data-table';
 import { RolePanel } from '@/components/role-panel';
 import { Loader2, Activity, DollarSign, PhoneCall, MessageCircle, User, Users, Calendar } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import Layout from '@/components/layout';
 
 // Dashboard stat card component
 interface StatCardProps {
@@ -95,13 +95,14 @@ export default function UserDashboardPage() {
   const userRole = user?.role || 'user';
   
   return (
-    <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.fullName || user?.username || 'User'}!
-        </p>
-      </div>
+    <Layout title="Dashboard">
+      <div className="container mx-auto py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome back, {user?.fullName || user?.username || 'User'}!
+          </p>
+        </div>
       
       <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
         <TabsList>
@@ -285,6 +286,7 @@ export default function UserDashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </Layout>
   );
 }
