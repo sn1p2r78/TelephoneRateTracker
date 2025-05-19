@@ -86,6 +86,10 @@ function App() {
             {!user ? <Redirect to="/auth" /> : <Settings />}
           </Route>
           
+          <Route path="/user-management">
+            {!user ? <Redirect to="/auth" /> : <UserManagementPage />}
+          </Route>
+          
 
           
           <Route path="/providers">
