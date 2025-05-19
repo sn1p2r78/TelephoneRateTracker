@@ -340,6 +340,33 @@ export const insertMessageHistorySchema = createInsertSchema(messageHistory).pic
 export type MessageHistory = typeof messageHistory.$inferSelect;
 export type InsertMessageHistory = z.infer<typeof insertMessageHistorySchema>;
 
+// Number Requests table
+export const numberRequests = pgTable("number_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  country: text("country").notNull(),
+  serviceType: text("service_type").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, fulfilled
+  notes: text("notes"),
+  assignedNumbers: text("assigned_numbers"), // JSON array of assigned number IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertNumberRequestSchema = createInsertSchema(numberRequests).pick({
+  userId: true,
+  country: true,
+  serviceType: true,
+  quantity: true,
+  status: true,
+  notes: true,
+  assignedNumbers: true,
+});
+
+export type NumberRequest = typeof numberRequests.$inferSelect;
+export type InsertNumberRequest = z.infer<typeof insertNumberRequestSchema>;
+
 export type ActivityType = (CallLog | SMSLog) & {
   activityType: 'call' | 'sms';
   numberValue: string;

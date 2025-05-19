@@ -24,6 +24,10 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
+  updateUserStatus(id: number, status: string): Promise<User | undefined>;
   
   // Premium Numbers
   getAllNumbers(): Promise<Number[]>;
@@ -31,6 +35,15 @@ export interface IStorage {
   createNumber(number: InsertNumber): Promise<Number>;
   updateNumber(id: number, number: InsertNumber): Promise<Number | undefined>;
   getActiveNumbersCount(): Promise<number>;
+  getNumbersByCountry(country: string): Promise<Number[]>;
+  getNumbersByServiceType(serviceType: string): Promise<Number[]>;
+  
+  // Number Requests
+  createNumberRequest(request: InsertNumberRequest): Promise<NumberRequest>;
+  getAllNumberRequests(): Promise<NumberRequest[]>;
+  getUserNumberRequests(userId: number): Promise<NumberRequest[]>;
+  getNumberRequest(id: number): Promise<NumberRequest | undefined>;
+  updateNumberRequest(id: number, request: Partial<InsertNumberRequest>): Promise<NumberRequest | undefined>;
   
   // Call Logs
   getAllCallLogs(): Promise<CallLog[]>;
@@ -114,6 +127,38 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(users.username);
+  }
+  
+  async updateUser(id: number, update: Partial<InsertUser>): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set(update)
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db
+      .delete(users)
+      .where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+  
+  async updateUserStatus(id: number, status: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ status })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
   }
 
   // Premium Numbers
