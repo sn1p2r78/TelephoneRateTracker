@@ -204,6 +204,148 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select().from(numbers).where(eq(numbers.isActive, true));
     return result.length;
   }
+  
+  // Number query methods
+  async getNumbersByCountry(country: string): Promise<Number[]> {
+    return await db
+      .select()
+      .from(numbers)
+      .where(eq(numbers.countryCode, country));
+  }
+  
+  async getNumbersByServiceType(serviceType: string): Promise<Number[]> {
+    return await db
+      .select()
+      .from(numbers)
+      .where(eq(numbers.serviceType, serviceType));
+  }
+  
+  // User-specific methods
+  async getUserNumbers(userId: number): Promise<Number[]> {
+    // For a real app, we'd have a user-number relationship table
+    // For now, we'll just return all numbers since we don't have that relation
+    return await db.select().from(numbers).where(eq(numbers.isActive, true));
+  }
+  
+  async getUserCallLogs(userId: number, limit?: number): Promise<CallLog[]> {
+    // For a real app, we'd filter by user ID
+    // For now, return all call logs with optional limit
+    const query = db.select().from(callLogs).orderBy(desc(callLogs.startTime));
+    
+    if (limit) {
+      return await query.limit(limit);
+    }
+    
+    return await query;
+  }
+  
+  async getUserSMSLogs(userId: number, limit?: number): Promise<SMSLog[]> {
+    // For a real app, we'd filter by user ID
+    // For now, return all SMS logs with optional limit
+    const query = db.select().from(smsLogs).orderBy(desc(smsLogs.timestamp));
+    
+    if (limit) {
+      return await query.limit(limit);
+    }
+    
+    return await query;
+  }
+  
+  async getUserCallLogsFiltered(
+    userId: number, 
+    fromDate?: Date, 
+    toDate?: Date, 
+    phoneNumber?: string
+  ): Promise<CallLog[]> {
+    // Build query filters
+    const filters = [];
+    
+    // Apply date filters if provided
+    if (fromDate) {
+      filters.push(callLogs.startTime >= fromDate);
+    }
+    
+    if (toDate) {
+      filters.push(callLogs.startTime <= toDate);
+    }
+    
+    // Apply phone number filter if provided
+    if (phoneNumber) {
+      filters.push(
+        or(
+          eq(callLogs.caller, phoneNumber),
+          eq(callLogs.recipient, phoneNumber),
+          eq(callLogs.numberValue, phoneNumber)
+        )
+      );
+    }
+    
+    // Create and execute query
+    if (filters.length > 0) {
+      return await db
+        .select()
+        .from(callLogs)
+        .where(and(...filters))
+        .orderBy(desc(callLogs.startTime));
+    } else {
+      return await db
+        .select()
+        .from(callLogs)
+        .orderBy(desc(callLogs.startTime));
+    }
+  }
+  
+  async getUserSMSLogsFiltered(
+    userId: number, 
+    fromDate?: Date, 
+    toDate?: Date, 
+    phoneNumber?: string
+  ): Promise<SMSLog[]> {
+    // Build query filters
+    const filters = [];
+    
+    // Apply date filters if provided
+    if (fromDate) {
+      filters.push(smsLogs.timestamp >= fromDate);
+    }
+    
+    if (toDate) {
+      filters.push(smsLogs.timestamp <= toDate);
+    }
+    
+    // Apply phone number filter if provided
+    if (phoneNumber) {
+      filters.push(
+        or(
+          eq(smsLogs.sender, phoneNumber),
+          eq(smsLogs.recipient, phoneNumber),
+          eq(smsLogs.numberValue, phoneNumber)
+        )
+      );
+    }
+    
+    // Create and execute query
+    if (filters.length > 0) {
+      return await db
+        .select()
+        .from(smsLogs)
+        .where(and(...filters))
+        .orderBy(desc(smsLogs.timestamp));
+    } else {
+      return await db
+        .select()
+        .from(smsLogs)
+        .orderBy(desc(smsLogs.timestamp));
+    }
+  }
+  
+  async getUserPayouts(userId: number): Promise<Payout[]> {
+    return await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.userId, userId))
+      .orderBy(desc(payouts.requestedAt));
+  }
 
   // Call Logs
   async getAllCallLogs(): Promise<CallLog[]> {
@@ -621,6 +763,78 @@ export class DatabaseStorage implements IStorage {
       return updatedMessage;
     } catch (error) {
       console.error("Error updating message response:", error);
+      return undefined;
+    }
+  }
+  
+  // Number Request methods
+  async createNumberRequest(request: InsertNumberRequest): Promise<NumberRequest> {
+    try {
+      const [newRequest] = await db
+        .insert(numberRequests)
+        .values(request)
+        .returning();
+      
+      return newRequest;
+    } catch (error) {
+      console.error("Error creating number request:", error);
+      throw error;
+    }
+  }
+  
+  async getAllNumberRequests(): Promise<NumberRequest[]> {
+    try {
+      return await db
+        .select()
+        .from(numberRequests)
+        .orderBy(desc(numberRequests.createdAt));
+    } catch (error) {
+      console.error("Error getting all number requests:", error);
+      return [];
+    }
+  }
+  
+  async getUserNumberRequests(userId: number): Promise<NumberRequest[]> {
+    try {
+      return await db
+        .select()
+        .from(numberRequests)
+        .where(eq(numberRequests.userId, userId))
+        .orderBy(desc(numberRequests.createdAt));
+    } catch (error) {
+      console.error("Error getting user number requests:", error);
+      return [];
+    }
+  }
+  
+  async getNumberRequest(id: number): Promise<NumberRequest | undefined> {
+    try {
+      const [request] = await db
+        .select()
+        .from(numberRequests)
+        .where(eq(numberRequests.id, id));
+      
+      return request;
+    } catch (error) {
+      console.error("Error getting number request:", error);
+      return undefined;
+    }
+  }
+  
+  async updateNumberRequest(id: number, request: Partial<InsertNumberRequest>): Promise<NumberRequest | undefined> {
+    try {
+      const [updatedRequest] = await db
+        .update(numberRequests)
+        .set({
+          ...request,
+          updatedAt: new Date()
+        })
+        .where(eq(numberRequests.id, id))
+        .returning();
+      
+      return updatedRequest;
+    } catch (error) {
+      console.error("Error updating number request:", error);
       return undefined;
     }
   }
