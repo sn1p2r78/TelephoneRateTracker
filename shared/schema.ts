@@ -381,3 +381,21 @@ export type ActivityType = (CallLog | SMSLog) & {
   duration?: number; // Call duration in seconds
   callDuration?: number; // Alternative property name for call duration
 };
+
+// User-Number relationship table to track which numbers belong to which users
+export const userNumbers = pgTable("user_numbers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  numberId: integer("number_id").notNull().references(() => numbers.id),
+  isTest: boolean("is_test").default(false), // Whether this is a test number allocation
+  assignedAt: timestamp("assigned_at").defaultNow(),
+});
+
+export const insertUserNumberSchema = createInsertSchema(userNumbers).pick({
+  userId: true,
+  numberId: true,
+  isTest: true,
+});
+
+export type UserNumber = typeof userNumbers.$inferSelect;
+export type InsertUserNumber = z.infer<typeof insertUserNumberSchema>;

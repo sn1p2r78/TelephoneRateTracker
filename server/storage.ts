@@ -41,6 +41,12 @@ export interface IStorage {
   getUserSMSLogsFiltered(userId: number, fromDate?: Date, toDate?: Date, phoneNumber?: string): Promise<SMSLog[]>;
   getUserPayouts(userId: number): Promise<Payout[]>;
   
+  // Role-based access control
+  assignNumberToUser(userId: number, numberId: number, isTest?: boolean): Promise<UserNumber>;
+  removeNumberFromUser(userId: number, numberId: number): Promise<boolean>;
+  getNumbersByUserRole(userId: number): Promise<Number[]>;
+  isTestAccount(userId: number): Promise<boolean>;
+  
   // Premium Numbers
   getAllNumbers(): Promise<Number[]>;
   getNumber(id: number): Promise<Number | undefined>;
@@ -345,6 +351,62 @@ export class DatabaseStorage implements IStorage {
       .from(payouts)
       .where(eq(payouts.userId, userId))
       .orderBy(desc(payouts.requestedAt));
+  }
+  
+  // Role-based access control methods
+  async assignNumberToUser(userId: number, numberId: number, isTest: boolean = false): Promise<UserNumber> {
+    const [userNumber] = await db
+      .insert(userNumbers)
+      .values({
+        userId,
+        numberId,
+        isTest
+      })
+      .returning();
+    return userNumber;
+  }
+  
+  async removeNumberFromUser(userId: number, numberId: number): Promise<boolean> {
+    const result = await db
+      .delete(userNumbers)
+      .where(
+        and(
+          eq(userNumbers.userId, userId),
+          eq(userNumbers.numberId, numberId)
+        )
+      );
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  async getNumbersByUserRole(userId: number): Promise<Number[]> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      return [];
+    }
+    
+    // Get numbers assigned to this user
+    const userNumbersQuery = db
+      .select({
+        numberId: userNumbers.numberId
+      })
+      .from(userNumbers)
+      .where(eq(userNumbers.userId, userId));
+      
+    const userNumberIds = (await userNumbersQuery).map(row => row.numberId);
+    
+    if (userNumberIds.length === 0) {
+      return [];
+    }
+    
+    return await db
+      .select()
+      .from(numbers)
+      .where(inArray(numbers.id, userNumberIds));
+  }
+  
+  async isTestAccount(userId: number): Promise<boolean> {
+    const user = await this.getUser(userId);
+    return user ? user.role === 'test' : false;
   }
 
   // Call Logs
