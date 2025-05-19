@@ -120,6 +120,69 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   sessionStore: any;
+  
+  // Methods for Storage interface extension for role-based access
+  async assignNumberToUser(userId: number, numberId: number, isTest: boolean = false): Promise<any> {
+    const [userNumber] = await db
+      .insert(userNumbers)
+      .values({
+        userId,
+        numberId,
+        isTest
+      })
+      .returning();
+    return userNumber;
+  }
+  
+  async removeNumberFromUser(userId: number, numberId: number): Promise<boolean> {
+    const result = await db
+      .delete(userNumbers)
+      .where(
+        and(
+          eq(userNumbers.userId, userId),
+          eq(userNumbers.numberId, numberId)
+        )
+      );
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  async getNumbersByUserRole(userId: number): Promise<Number[]> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      return [];
+    }
+    
+    // Get numbers assigned to this user
+    const userNumberRows = await db
+      .select({
+        numberId: userNumbers.numberId
+      })
+      .from(userNumbers)
+      .where(eq(userNumbers.userId, userId));
+      
+    const userNumberIds = userNumberRows.map(row => row.numberId);
+    
+    if (userNumberIds.length === 0) {
+      return [];
+    }
+    
+    return await db
+      .select()
+      .from(numbers)
+      .where(inArray(numbers.id, userNumberIds));
+  }
+  
+  async isTestAccount(userId: number): Promise<boolean> {
+    const user = await this.getUser(userId);
+    return user ? user.role === 'test' : false;
+  }
+  
+  async getAllPayouts(): Promise<Payout[]> {
+    return await db
+      .select()
+      .from(payouts)
+      .orderBy(desc(payouts.requestedAt));
+  }
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
