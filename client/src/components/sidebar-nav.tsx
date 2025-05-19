@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   MessageSquare,
   Phone,
-  PhoneCall,
   Settings,
   ShieldCheck,
   Smartphone,
@@ -89,6 +88,24 @@ export default function SidebarNav() {
     }
   ];
 
+  // Create a navigation item component to reduce duplication
+  const NavItem = ({ href, icon: Icon, title, isActive }) => (
+    <Button
+      variant={isActive ? "secondary" : "ghost"}
+      className={cn(
+        "w-full justify-start",
+        isActive ? "bg-secondary" : ""
+      )}
+    >
+      <Link href={href}>
+        <div className="flex items-center">
+          <Icon className="mr-2 h-4 w-4" />
+          {title}
+        </div>
+      </Link>
+    </Button>
+  );
+
   return (
     <nav className="w-64 flex-shrink-0 hidden md:block border-r h-full bg-background overflow-y-auto">
       <div className="py-6 h-full flex flex-col">
@@ -97,29 +114,15 @@ export default function SidebarNav() {
             Main Navigation
           </h2>
           <div className="space-y-1">
-            {mainNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-
-              return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start",
-                    isActive ? "bg-secondary" : ""
-                  )}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <a className="flex items-center">
-                      <Icon className="mr-2 h-4 w-4" />
-                      {item.title}
-                    </a>
-                  </Link>
-                </Button>
-              );
-            })}
+            {mainNavItems.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                title={item.title}
+                isActive={location === item.href}
+              />
+            ))}
           </div>
         </div>
 
@@ -128,29 +131,15 @@ export default function SidebarNav() {
             Integrations
           </h2>
           <div className="space-y-1">
-            {integrationsNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-
-              return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start",
-                    isActive ? "bg-secondary" : ""
-                  )}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <a className="flex items-center">
-                      <Icon className="mr-2 h-4 w-4" />
-                      {item.title}
-                    </a>
-                  </Link>
-                </Button>
-              );
-            })}
+            {integrationsNavItems.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                title={item.title}
+                isActive={location === item.href}
+              />
+            ))}
           </div>
         </div>
 
@@ -159,29 +148,15 @@ export default function SidebarNav() {
             Administration
           </h2>
           <div className="space-y-1">
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-
-              return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start",
-                    isActive ? "bg-secondary" : ""
-                  )}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <a className="flex items-center">
-                      <Icon className="mr-2 h-4 w-4" />
-                      {item.title}
-                    </a>
-                  </Link>
-                </Button>
-              );
-            })}
+            {adminNavItems.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                title={item.title}
+                isActive={location === item.href}
+              />
+            ))}
           </div>
         </div>
       </div>
