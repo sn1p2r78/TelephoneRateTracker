@@ -19,7 +19,7 @@ import {
 
 export default function SidebarNav() {
   const [location] = useLocation();
-  
+
   const mainNavItems = [
     {
       title: "Dashboard",
@@ -32,16 +32,6 @@ export default function SidebarNav() {
       icon: Smartphone,
     },
     {
-      title: "Call Logs",
-      href: "/call-logs",
-      icon: PhoneCall,
-    },
-    {
-      title: "SMS Logs",
-      href: "/sms-logs",
-      icon: MessageSquare,
-    },
-    {
       title: "CDIR History",
       href: "/cdir",
       icon: FileText,
@@ -52,17 +42,12 @@ export default function SidebarNav() {
       icon: Wallet,
     }
   ];
-  
+
   const integrationsNavItems = [
     {
       title: "Auto-Responders",
       href: "/auto-responders",
       icon: MessageSquare,
-    },
-    {
-      title: "API Integrations",
-      href: "/api-integrations",
-      icon: Webhook,
     },
     {
       title: "API Keys",
@@ -75,7 +60,7 @@ export default function SidebarNav() {
       icon: FileText,
     }
   ];
-  
+
   const adminNavItems = [
     {
       title: "User Management",
@@ -115,7 +100,7 @@ export default function SidebarNav() {
             {mainNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href;
-              
+
               return (
                 <Button
                   key={item.href}
@@ -137,7 +122,7 @@ export default function SidebarNav() {
             })}
           </div>
         </div>
-        
+
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Integrations
@@ -146,7 +131,7 @@ export default function SidebarNav() {
             {integrationsNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href;
-              
+
               return (
                 <Button
                   key={item.href}
@@ -168,7 +153,7 @@ export default function SidebarNav() {
             })}
           </div>
         </div>
-        
+
         <div className="px-3 py-2 mt-auto">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Administration
@@ -177,7 +162,7 @@ export default function SidebarNav() {
             {adminNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href;
-              
+
               return (
                 <Button
                   key={item.href}
