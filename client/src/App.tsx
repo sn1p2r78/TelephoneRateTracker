@@ -5,13 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import AuthPage from "@/pages/auth-page";
-import CallLogs from "@/pages/call-logs";
-import SMSLogs from "@/pages/sms-logs";
 import RevenueReports from "@/pages/revenue-reports";
 import NumberManagement from "@/pages/number-management";
 import UserMessages from "@/pages/user-messages";
 import Settings from "@/pages/settings";
-import ApiIntegrations from "@/pages/api-integrations";
 import ProvidersPage from "@/pages/providers";
 import PaymentManagement from "@/pages/payment-management";
 import AutoResponders from "@/pages/auto-responders";
@@ -71,13 +68,7 @@ function App() {
             {!user ? <Redirect to="/auth" /> : <Dashboard />}
           </Route>
           
-          <Route path="/calls">
-            {!user ? <Redirect to="/auth" /> : <CallLogs />}
-          </Route>
-          
-          <Route path="/sms">
-            {!user ? <Redirect to="/auth" /> : <SMSLogs />}
-          </Route>
+
           
           <Route path="/revenue-reports">
             {!user ? <Redirect to="/auth" /> : <RevenueReports />}
@@ -95,9 +86,7 @@ function App() {
             {!user ? <Redirect to="/auth" /> : <Settings />}
           </Route>
           
-          <Route path="/integrations">
-            {!user ? <Redirect to="/auth" /> : <ApiIntegrations />}
-          </Route>
+
           
           <Route path="/providers">
             {!user ? <Redirect to="/auth" /> : <ProvidersPage />}
