@@ -47,6 +47,9 @@ export default function ApiKeysPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<string | null>(null);
+  const [keyToTest, setKeyToTest] = useState<string>("");
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testingKey, setTestingKey] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -78,6 +81,33 @@ export default function ApiKeysPage() {
     onError: (error: Error) => {
       toast({
         title: "Failed to Create API Key",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Test API key mutation
+  const testApiKeyMutation = useMutation({
+    mutationFn: async (key: string) => {
+      const response = await apiRequest("POST", "/api/api-keys/test", { key });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setTestResult(data);
+      setTestingKey(false);
+      toast({
+        title: data.valid ? "API Key Valid" : "API Key Invalid",
+        description: data.valid 
+          ? `This key has the following permissions: ${data.permissions.join(", ")}` 
+          : "The provided API key is not valid",
+        variant: data.valid ? "default" : "destructive",
+      });
+    },
+    onError: (error: Error) => {
+      setTestingKey(false);
+      toast({
+        title: "Test Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -133,6 +163,20 @@ export default function ApiKeysPage() {
     if (keyToDelete) {
       deleteApiKeyMutation.mutate(keyToDelete);
     }
+  };
+  
+  const handleTestKey = () => {
+    if (!keyToTest.trim()) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter an API key to test.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setTestingKey(true);
+    testApiKeyMutation.mutate(keyToTest.trim());
   };
 
   const copyKey = () => {
@@ -372,6 +416,67 @@ export default function ApiKeysPage() {
             </div>
 
             <div className="space-y-6">
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>Test API Key</CardTitle>
+                  <CardDescription>
+                    Verify an API key is valid and see what permissions it has
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-end gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="testKey" className="mb-2 block">API Key</Label>
+                      <Input
+                        id="testKey"
+                        placeholder="Enter API key to test"
+                        value={keyToTest}
+                        onChange={(e) => setKeyToTest(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleTestKey}
+                      disabled={testingKey || !keyToTest.trim()}
+                    >
+                      {testingKey ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                          Testing...
+                        </>
+                      ) : (
+                        "Test Key"
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {testResult && (
+                    <div className={`mt-4 p-4 rounded-md ${
+                      testResult.valid 
+                        ? "bg-green-50 border border-green-200" 
+                        : "bg-red-50 border border-red-200"
+                    }`}>
+                      <div className="flex items-start">
+                        {testResult.valid ? (
+                          <CheckIcon className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <ShieldAlert className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <h3 className="font-medium">{testResult.valid ? "Valid API Key" : "Invalid API Key"}</h3>
+                          {testResult.valid && (
+                            <div className="mt-1 text-sm">
+                              <p><span className="font-medium">Name:</span> {testResult.name}</p>
+                              <p><span className="font-medium">Permissions:</span> {testResult.permissions.join(", ")}</p>
+                              <p><span className="font-medium">Created:</span> {new Date(testResult.created).toLocaleString()}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle>Your API Keys</CardTitle>

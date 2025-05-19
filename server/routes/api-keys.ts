@@ -91,6 +91,52 @@ apiKeyRouter.delete("/:key", async (req: Request, res: Response) => {
   }
 });
 
+// Route to test an API key
+apiKeyRouter.post("/test", async (req: Request, res: Response) => {
+  try {
+    const { key } = req.body;
+    
+    if (!key) {
+      return res.status(400).json({ error: "API key is required" });
+    }
+    
+    // Get the API keys from settings
+    const setting = await storage.getSettingByKey("api_keys");
+    
+    if (!setting || !setting.value) {
+      return res.status(404).json({ error: "No API keys found in the system" });
+    }
+    
+    try {
+      // Parse the stored keys
+      const keys = JSON.parse(setting.value);
+      
+      // Find the key
+      const keyMatch = keys.find((k: any) => k.key === key);
+      
+      if (!keyMatch) {
+        return res.status(401).json({ 
+          valid: false,
+          message: "Invalid API key" 
+        });
+      }
+      
+      return res.json({
+        valid: true,
+        name: keyMatch.name,
+        permissions: keyMatch.permissions,
+        created: keyMatch.created
+      });
+    } catch (e) {
+      log(`Error parsing API keys: ${e instanceof Error ? e.message : String(e)}`, "api");
+      return res.status(500).json({ error: "Error parsing API keys" });
+    }
+  } catch (error) {
+    log(`Error testing API key: ${error instanceof Error ? error.message : String(error)}`, "api");
+    return res.status(500).json({ error: "Failed to test API key" });
+  }
+});
+
 // Expose a route to generate example code
 apiKeyRouter.get("/example-code", (req: Request, res: Response) => {
   const exampleKey = "YOUR_API_KEY";
