@@ -1,127 +1,205 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/use-auth";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard, 
-  Phone, 
-  MessageSquare, 
-  BarChart, 
-  Hash, 
-  Users, 
-  Settings, 
-  Cable, 
-  LogOut,
-  Search,
-  Building,
-  CreditCard,
-  MessageCircleReply,
-  History,
-  BookOpen,
-  KeyRound,
-  Shield
+  BarChart3,
+  FileText,
+  Key,
+  LayoutDashboard,
+  MessageSquare,
+  Phone,
+  PhoneCall,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  UserCircle2,
+  Wallet,
+  Webhook,
 } from "lucide-react";
 
 export default function SidebarNav() {
   const [location] = useLocation();
-  const { user, logoutMutation } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
-    { href: "/calls", label: "Call Logs", icon: <Phone className="w-5 h-5" /> },
-    { href: "/sms", label: "SMS Logs", icon: <MessageSquare className="w-5 h-5" /> },
-    { href: "/cdir", label: "CDIR History", icon: <History className="w-5 h-5" /> },
-    { href: "/revenue", label: "Revenue Reports", icon: <BarChart className="w-5 h-5" /> },
-    { href: "/numbers", label: "Number Management", icon: <Hash className="w-5 h-5" /> },
-    { href: "/auto-responders", label: "Auto Responders", icon: <MessageCircleReply className="w-5 h-5" /> },
-    { href: "/providers", label: "Providers", icon: <Building className="w-5 h-5" /> },
-    { href: "/payment-management", label: "Payment Management", icon: <CreditCard className="w-5 h-5" /> },
-    { href: "/users", label: "User Messages", icon: <Users className="w-5 h-5" /> },
-    { href: "/settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
-    { href: "/integrations", label: "API Integrations", icon: <Cable className="w-5 h-5" /> },
-    { href: "/api-docs", label: "API Documentation", icon: <BookOpen className="w-5 h-5" /> },
-    { href: "/api-keys", label: "API Keys", icon: <KeyRound className="w-5 h-5" /> },
+  
+  const mainNavItems = [
+    {
+      title: "Dashboard",
+      href: "/user-dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Number Requests",
+      href: "/number-requests",
+      icon: Smartphone,
+    },
+    {
+      title: "Call Logs",
+      href: "/call-logs",
+      icon: PhoneCall,
+    },
+    {
+      title: "SMS Logs",
+      href: "/sms-logs",
+      icon: MessageSquare,
+    },
+    {
+      title: "CDIR History",
+      href: "/cdir",
+      icon: FileText,
+    },
+    {
+      title: "Payment Profile",
+      href: "/payment-profile",
+      icon: Wallet,
+    }
+  ];
+  
+  const integrationsNavItems = [
+    {
+      title: "Auto-Responders",
+      href: "/auto-responders",
+      icon: MessageSquare,
+    },
+    {
+      title: "API Integrations",
+      href: "/api-integrations",
+      icon: Webhook,
+    },
+    {
+      title: "API Keys",
+      href: "/api-keys",
+      icon: Key,
+    },
+    {
+      title: "API Docs",
+      href: "/api-docs",
+      icon: FileText,
+    }
+  ];
+  
+  const adminNavItems = [
+    {
+      title: "User Management",
+      href: "/user-management",
+      icon: UserCircle2,
+    },
+    {
+      title: "Number Management",
+      href: "/number-management",
+      icon: Phone,
+    },
+    {
+      title: "Providers",
+      href: "/providers",
+      icon: ShieldCheck,
+    },
+    {
+      title: "Revenue Reports",
+      href: "/revenue-reports",
+      icon: BarChart3,
+    },
+    {
+      title: "Settings",
+      href: "/settings",
+      icon: Settings,
+    }
   ];
 
-  const filteredNavItems = navItems.filter(item => 
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
-
   return (
-    <aside className="w-64 bg-white shadow-md z-20 flex flex-col h-full">
-      <div className="p-4 border-b border-border flex items-center">
-        <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-white mr-2">
-          <span className="font-bold">PRN</span>
-        </div>
-        <h1 className="text-lg font-semibold">PRN Admin Panel</h1>
-      </div>
-
-      <div className="p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input 
-            type="text" 
-            placeholder="Search..." 
-            className="w-full pl-10" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <nav className="flex-grow overflow-y-auto">
-        <ul>
-          {filteredNavItems.map((item) => (
-            <li 
-              key={item.href} 
-              className={`sidebar-item ${location === item.href ? 'active' : ''}`}
-            >
-              <Link 
-                href={item.href} 
-                className={`flex items-center px-4 py-3 ${
-                  location === item.href 
-                    ? 'text-primary font-medium' 
-                    : 'text-foreground hover:text-primary transition-colors'
-                }`}
-              >
-                <span className="w-6">{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center">
-          <Avatar>
-            <AvatarFallback className="bg-primary text-white">
-              {user?.fullName?.split(' ').map(n => n[0]).join('') || user?.username.substring(0, 2).toUpperCase() || 'UN'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="ml-3">
-            <p className="text-sm font-medium">{user?.fullName || user?.username || 'User'}</p>
-            <p className="text-xs text-muted-foreground">{user?.role || 'Administrator'}</p>
-          </div>
-          <div className="ml-auto flex items-center space-x-2">
-            <ThemeToggle />
-            <button 
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-primary"
-              disabled={logoutMutation.isPending}
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+    <nav className="w-64 flex-shrink-0 hidden md:block border-r h-full bg-background overflow-y-auto">
+      <div className="py-6 h-full flex flex-col">
+        <div className="px-3 py-2">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+            Main Navigation
+          </h2>
+          <div className="space-y-1">
+            {mainNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    isActive ? "bg-secondary" : ""
+                  )}
+                  asChild
+                >
+                  <Link href={item.href}>
+                    <a className="flex items-center">
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.title}
+                    </a>
+                  </Link>
+                </Button>
+              );
+            })}
           </div>
         </div>
+        
+        <div className="px-3 py-2">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+            Integrations
+          </h2>
+          <div className="space-y-1">
+            {integrationsNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    isActive ? "bg-secondary" : ""
+                  )}
+                  asChild
+                >
+                  <Link href={item.href}>
+                    <a className="flex items-center">
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.title}
+                    </a>
+                  </Link>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+        
+        <div className="px-3 py-2 mt-auto">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+            Administration
+          </h2>
+          <div className="space-y-1">
+            {adminNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    isActive ? "bg-secondary" : ""
+                  )}
+                  asChild
+                >
+                  <Link href={item.href}>
+                    <a className="flex items-center">
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.title}
+                    </a>
+                  </Link>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </aside>
+    </nav>
   );
 }

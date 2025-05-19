@@ -18,6 +18,9 @@ import AutoResponders from "@/pages/auto-responders";
 import CDIRPage from "@/pages/cdir";
 import ApiDocsPage from "@/pages/api-docs";
 import ApiKeysPage from "@/pages/api-keys";
+import UserDashboardPage from "@/pages/user-dashboard";
+import NumberRequestsPage from "@/pages/number-requests";
+import PaymentProfilePage from "@/pages/payment-profile";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -118,6 +121,19 @@ function App() {
           
           <Route path="/api-keys">
             {!user ? <Redirect to="/auth" /> : <ApiKeysPage />}
+          </Route>
+          
+          {/* New User Panel Routes */}
+          <Route path="/user-dashboard">
+            {!user ? <Redirect to="/auth" /> : <UserDashboardPage />}
+          </Route>
+          
+          <Route path="/number-requests">
+            {!user ? <Redirect to="/auth" /> : <NumberRequestsPage />}
+          </Route>
+          
+          <Route path="/payment-profile">
+            {!user ? <Redirect to="/auth" /> : <PaymentProfilePage />}
           </Route>
           
           <Route>
