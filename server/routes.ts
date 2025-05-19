@@ -21,6 +21,8 @@ import {
 } from "@shared/schema";
 import webhookRouter from "./routes/webhook";
 import apiKeyRouter from "./routes/api-keys";
+import userRouter from "./routes/user";
+import numberRouter from "./routes/numbers";
 import { initializeIntegrations, getIntegrationsStatus } from "./integrations";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -30,6 +32,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up webhooks routes
   app.use('/api/webhooks', webhookRouter);
   app.use('/api/api-keys', apiKeyRouter);
+  
+  // Add the user-specific routes
+  app.use('/api/user', userRouter);
+  
+  // Add number management routes
+  app.use('/api/numbers', numberRouter);
   
   // Initialize integrations (SMPP, HTTP, etc.)
   await initializeIntegrations();

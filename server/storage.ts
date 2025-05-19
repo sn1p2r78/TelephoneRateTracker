@@ -9,7 +9,11 @@ import {
   ActivityType,
   SmsAutoResponder, InsertSmsAutoResponder,
   MessageHistory, InsertMessageHistory,
-  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings, smsAutoResponders, messageHistory
+  users, numbers, callLogs, smsLogs, userMessages, apiIntegrations, settings, smsAutoResponders, messageHistory,
+  NumberRequest, InsertNumberRequest, 
+  numberRequests,
+  Payout, InsertPayout,
+  payouts
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or } from "drizzle-orm";
@@ -28,6 +32,14 @@ export interface IStorage {
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
   updateUserStatus(id: number, status: string): Promise<User | undefined>;
+  
+  // User-specific methods
+  getUserNumbers(userId: number): Promise<Number[]>;
+  getUserCallLogs(userId: number, limit?: number): Promise<CallLog[]>;
+  getUserSMSLogs(userId: number, limit?: number): Promise<SMSLog[]>;
+  getUserCallLogsFiltered(userId: number, fromDate?: Date, toDate?: Date, phoneNumber?: string): Promise<CallLog[]>;
+  getUserSMSLogsFiltered(userId: number, fromDate?: Date, toDate?: Date, phoneNumber?: string): Promise<SMSLog[]>;
+  getUserPayouts(userId: number): Promise<Payout[]>;
   
   // Premium Numbers
   getAllNumbers(): Promise<Number[]>;
